@@ -1,0 +1,40 @@
+{
+  "schema_version": "2026-09-23.phase02",
+  "agent_id": "agent_a_resume",
+  "name": "Agent A Resume Specialist",
+  "canonical_instruction": "AGENT.md",
+  "contributor_instruction": "AGENTS.md",
+  "model": {
+    "default": "gpt-5.4",
+    "fallbacks": [],
+    "max_schema_repairs": 1
+  },
+  "instruction_precedence": [
+    "global_application_invariants",
+    "agent_a_resume/AGENT.md",
+    "selected_skill/SKILL.md",
+    "task_inputs"
+  ],
+  "skills": [
+    {
+      "id": "resume-evidence",
+      "path": "skills/resume-evidence/SKILL.md"
+    },
+    {
+      "id": "resume-tailoring",
+      "path": "skills/resume-tailoring/SKILL.md"
+    },
+    {
+      "id": "resume-export-review",
+      "path": "skills/resume-export-review/SKILL.md"
+    }
+  ],
+  "mcp_manifest": "mcp.json",
+  "writable_resources": [
+    "application-scoped resume drafts",
+    "validation findings",
+    "workflow checkpoints"
+  ],
+  "completion_state": "validated"
+}
+

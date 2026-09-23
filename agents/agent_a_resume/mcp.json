@@ -1,0 +1,20 @@
+{
+  "schema_version": "2026-09-23.phase02",
+  "agent_id": "agent_a_resume",
+  "mode": "synthetic_dry_run",
+  "tools": [
+    {"name": "space.get_career_evidence", "scope": "confirmed career facts only", "external_effect": "none"},
+    {"name": "jobs.get_job", "scope": "assigned job snapshot only", "external_effect": "none"},
+    {"name": "documents.extract_resume", "scope": "assigned resume artifact", "external_effect": "none"},
+    {"name": "documents.render_resume", "scope": "application draft artifact", "external_effect": "local_draft"},
+    {"name": "documents.extract_text", "scope": "assigned rendered artifact", "external_effect": "none"},
+    {"name": "documents.render_preview", "scope": "assigned rendered artifact", "external_effect": "none"},
+    {"name": "documents.get_artifact", "scope": "assigned artifact metadata", "external_effect": "none"},
+    {"name": "review.create_question", "scope": "resume-evidence questions", "external_effect": "review_queue"},
+    {"name": "review.get_question_status", "scope": "own questions", "external_effect": "none"},
+    {"name": "workflow.save_stage_result", "scope": "own assignment", "external_effect": "local_draft"},
+    {"name": "workflow.save_checkpoint", "scope": "own assignment", "external_effect": "local_draft"},
+    {"name": "workflow.get_assigned_task", "scope": "own assignment", "external_effect": "none"}
+  ]
+}
+

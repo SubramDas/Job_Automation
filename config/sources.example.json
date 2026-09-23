@@ -1,0 +1,278 @@
+{
+  "schema_version": "2026-09-23.phase01",
+  "sources": [
+    {
+      "id": "manual_import",
+      "name": "Manual pasted job description and URL",
+      "status": "synthetic_enabled",
+      "capabilities": [
+        "discovery",
+        "description_retrieval",
+        "manual_handoff"
+      ],
+      "requires_account": false,
+      "live_external_actions": false,
+      "notes": "Universal MVP fallback. User supplies the description and source URL."
+    },
+    {
+      "id": "fixture_remote_jobs",
+      "name": "Fixture remote tech jobs",
+      "status": "synthetic_enabled",
+      "capabilities": [
+        "discovery",
+        "result_link_retrieval",
+        "description_retrieval",
+        "destination_resolution",
+        "manual_handoff",
+        "fixture"
+      ],
+      "requires_account": false,
+      "live_external_actions": false,
+      "limits": {
+        "max_results_per_run": 10,
+        "freshness_days": 14
+      },
+      "allowed_hosts": [
+        "fixture.remotejobs.test"
+      ],
+      "notes": "Local fixture adapter used to run Agent B end-to-end without live network access."
+    },
+    {
+      "id": "fixture_india_jobs",
+      "name": "Fixture India tech jobs",
+      "status": "synthetic_enabled",
+      "capabilities": [
+        "discovery",
+        "result_link_retrieval",
+        "description_retrieval",
+        "destination_resolution",
+        "manual_handoff",
+        "fixture"
+      ],
+      "requires_account": false,
+      "live_external_actions": false,
+      "limits": {
+        "max_results_per_run": 10,
+        "freshness_days": 14
+      },
+      "allowed_hosts": [
+        "fixture.indiajobs.test"
+      ],
+      "notes": "Local fixture adapter with Bengaluru/Hyderabad examples for Agent B discovery tests."
+    },
+    {
+      "id": "jobicy_api_candidate",
+      "name": "Jobicy public remote jobs API",
+      "status": "read_only_enabled",
+      "capabilities": [
+        "discovery",
+        "result_link_retrieval",
+        "description_retrieval",
+        "destination_resolution",
+        "api_candidate",
+        "manual_handoff"
+      ],
+      "requires_account": false,
+      "live_external_actions": false,
+      "limits": {
+        "max_results_per_run": 20,
+        "freshness_days": 14,
+        "minimum_poll_interval_minutes": 60
+      },
+      "allowed_hosts": [
+        "jobicy.com"
+      ],
+      "attribution": {
+        "required": true,
+        "label": "Jobicy",
+        "preserve_canonical_url": true
+      },
+      "notes": "Free public read-only API for remote jobs. Preserve Jobicy attribution and canonical URL; do not poll more than hourly."
+    },
+    {
+      "id": "adzuna_api_candidate",
+      "name": "Adzuna Job Search API candidate",
+      "status": "candidate_pending_api_key",
+      "capabilities": [
+        "api_candidate",
+        "manual_handoff"
+      ],
+      "requires_account": true,
+      "live_external_actions": false,
+      "required_secrets": [
+        "ADZUNA_APP_ID",
+        "ADZUNA_APP_KEY"
+      ],
+      "notes": "Requires Adzuna app_id and app_key. Do not enable until user configures credentials and terms are accepted."
+    },
+    {
+      "id": "usajobs_api_candidate",
+      "name": "USAJOBS API candidate",
+      "status": "candidate_pending_api_key",
+      "capabilities": [
+        "api_candidate",
+        "manual_handoff"
+      ],
+      "requires_account": true,
+      "live_external_actions": false,
+      "required_secrets": [
+        "USAJOBS_USER_AGENT_EMAIL",
+        "USAJOBS_AUTHORIZATION_KEY"
+      ],
+      "notes": "Requires USAJOBS API key and user-agent email. Mostly useful for US federal roles."
+    },
+    {
+      "id": "jobsearch_mcp_candidate",
+      "name": "Self-hosted jobsearch-mcp candidate",
+      "status": "candidate_pending_permission_review",
+      "capabilities": [
+        "discovery",
+        "result_link_retrieval",
+        "api_candidate",
+        "manual_handoff"
+      ],
+      "requires_account": "varies",
+      "live_external_actions": false,
+      "notes": "Candidate self-hosted MCP backend with sources such as Adzuna, Remotive, WeWorkRemotely, Jobicy, and USAJobs. Vet source keys and terms first."
+    },
+    {
+      "id": "jobspy_mcp_candidate",
+      "name": "JobSpy MCP server candidate",
+      "status": "read_only_enabled_local",
+      "capabilities": [
+        "discovery",
+        "result_link_retrieval",
+        "description_retrieval",
+        "destination_resolution",
+        "api_candidate",
+        "manual_handoff"
+      ],
+      "requires_account": false,
+      "live_external_actions": false,
+      "local_endpoint_env": "JOBSPY_MCP_URL",
+      "default_local_endpoint": "http://127.0.0.1:9423/api",
+      "allowed_site_names": [
+        "indeed",
+        "zip_recruiter",
+        "glassdoor",
+        "google",
+        "bayt"
+      ],
+      "required_runtime": [
+        "Node.js 16+",
+        "Python 3.6+",
+        "JobSpy tool installation"
+      ],
+      "supported_sites_claimed": [
+        "indeed",
+        "linkedin",
+        "zip_recruiter",
+        "glassdoor",
+        "google",
+        "bayt",
+        "naukri"
+      ],
+      "notes": "Self-hosted local MCP server wrapping JobSpy. LinkedIn and Naukri remain excluded because current terms/permission review blocks automated scraping for this project."
+    },
+    {
+      "id": "ats_allowlist_fixture",
+      "name": "ATS allowlist fixture",
+      "status": "synthetic_enabled",
+      "capabilities": [
+        "discovery",
+        "result_link_retrieval",
+        "description_retrieval",
+        "destination_resolution",
+        "manual_handoff",
+        "fixture"
+      ],
+      "requires_account": false,
+      "live_external_actions": false,
+      "limits": {
+        "max_results_per_run": 5,
+        "freshness_days": 14
+      },
+      "allowed_hosts": [
+        "jobs.lever.co",
+        "boards.greenhouse.io"
+      ],
+      "adapter_fixture_shapes": [
+        "stable public job-detail URL",
+        "detail page includes employer, title, location, description, and apply URL"
+      ],
+      "notes": "Synthetic adapter fixture for small employer/ATS allowlists. Real employer pages require one reviewed allowlist entry and fixture before enablement."
+    },
+    {
+      "id": "jobs_registry_ai_candidate",
+      "name": "Official MCP registry AI jobs candidate",
+      "status": "candidate_pending_permission_review",
+      "capabilities": [
+        "api_candidate",
+        "manual_handoff"
+      ],
+      "requires_account": "varies",
+      "live_external_actions": false,
+      "notes": "Candidate MCP registry server for AI-focused jobs. Vet scope, freshness, and permissions first."
+    },
+    {
+      "id": "jobspipe_candidate",
+      "name": "JobsPipe API/MCP",
+      "status": "read_only_enabled",
+      "capabilities": [
+        "discovery",
+        "result_link_retrieval",
+        "description_retrieval",
+        "destination_resolution",
+        "api_candidate",
+        "manual_handoff"
+      ],
+      "requires_account": true,
+      "live_external_actions": false,
+      "required_secrets": [
+        "JOBSPIPE_API_KEY"
+      ],
+      "limits": {
+        "max_results_per_run": 25,
+        "freshness_days": 14
+      },
+      "allowed_hosts": [
+        "api.jobspipe.dev"
+      ],
+      "notes": "Read-only JobsPipe REST adapter. Requests count against the user's JobsPipe plan/quota/rate limits."
+    },
+    {
+      "id": "linkedin",
+      "name": "LinkedIn",
+      "status": "manual_only_pending_permission",
+      "capabilities": [
+        "import_only",
+        "manual_handoff"
+      ],
+      "requires_account": true,
+      "live_external_actions": false,
+      "notes": "Website automation remains out of scope unless a specifically permitted integration is approved."
+    },
+    {
+      "id": "naukri",
+      "name": "Naukri",
+      "status": "unknown_pending_terms_review",
+      "capabilities": [
+        "manual_handoff"
+      ],
+      "requires_account": true,
+      "live_external_actions": false,
+      "notes": "Official permissions and adapter capabilities must be verified before automation."
+    },
+    {
+      "id": "employer_career_site",
+      "name": "Employer career site",
+      "status": "candidate_for_future_adapter",
+      "capabilities": [
+        "manual_handoff"
+      ],
+      "requires_account": "varies",
+      "live_external_actions": false,
+      "notes": "Each employer/ATS path needs a separate capability contract."
+    }
+  ]
+}

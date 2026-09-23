@@ -1,0 +1,2 @@
+"""Validation service module placeholder."""
+

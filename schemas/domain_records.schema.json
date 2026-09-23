@@ -1,0 +1,174 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://local.job-automation/schemas/domain-records",
+  "title": "DomainRecords",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "candidate_fact": { "$ref": "#/$defs/candidate_fact" },
+    "preference_policy": { "$ref": "#/$defs/preference_policy" },
+    "reusable_answer": { "$ref": "#/$defs/reusable_answer" },
+    "job": { "$ref": "#/$defs/job" },
+    "match_result": { "$ref": "#/$defs/match_result" },
+    "resume_artifact": { "$ref": "#/$defs/resume_artifact" },
+    "application": { "$ref": "#/$defs/application" },
+    "pending_question": { "$ref": "#/$defs/pending_question" }
+  },
+  "$defs": {
+    "versioned_base": {
+      "type": "object",
+      "required": ["id", "schema_version", "version", "created_at"],
+      "properties": {
+        "id": { "type": "string" },
+        "schema_version": { "type": "string" },
+        "version": { "type": "integer", "minimum": 1 },
+        "created_at": { "type": "string", "format": "date-time" }
+      }
+    },
+    "candidate_fact": {
+      "allOf": [
+        { "$ref": "#/$defs/versioned_base" },
+        {
+          "type": "object",
+          "required": ["field_key", "value_type", "value", "source_ref", "confirmation_state", "sensitivity"],
+          "properties": {
+            "field_key": { "type": "string" },
+            "value_type": { "type": "string" },
+            "value": {},
+            "source_ref": { "type": "string" },
+            "confirmation_state": {
+              "type": "string",
+              "enum": ["proposed", "confirmed", "rejected", "superseded"]
+            },
+            "sensitivity": {
+              "type": "string",
+              "enum": ["public", "private", "sensitive"]
+            }
+          }
+        }
+      ]
+    },
+    "preference_policy": {
+      "allOf": [
+        { "$ref": "#/$defs/versioned_base" },
+        {
+          "type": "object",
+          "required": ["hard_constraints", "weighted_preferences", "exclusions"],
+          "properties": {
+            "hard_constraints": { "type": "array", "items": { "type": "object" } },
+            "weighted_preferences": { "type": "array", "items": { "type": "object" } },
+            "exclusions": { "type": "array", "items": { "type": "object" } }
+          }
+        }
+      ]
+    },
+    "reusable_answer": {
+      "allOf": [
+        { "$ref": "#/$defs/versioned_base" },
+        {
+          "type": "object",
+          "required": ["semantic_key", "typed_value", "scope", "confirmation_state", "reuse_permission"],
+          "properties": {
+            "semantic_key": { "type": "string" },
+            "original_question": { "type": "string" },
+            "typed_value": {},
+            "unit": { "type": ["string", "null"] },
+            "scope": { "type": "object" },
+            "confirmation_state": { "type": "string" },
+            "expires_at": { "type": ["string", "null"], "format": "date-time" },
+            "reuse_permission": { "type": "string" }
+          }
+        }
+      ]
+    },
+    "job": {
+      "allOf": [
+        { "$ref": "#/$defs/versioned_base" },
+        {
+          "type": "object",
+          "required": ["source_ids", "canonical_url", "description_hash", "retrieved_at", "status"],
+          "properties": {
+            "source_ids": { "type": "array", "items": { "type": "string" } },
+            "canonical_url": { "type": ["string", "null"] },
+            "employer": { "type": ["string", "null"] },
+            "requisition_id": { "type": ["string", "null"] },
+            "title": { "type": ["string", "null"] },
+            "description_hash": { "type": "string" },
+            "retrieved_at": { "type": "string", "format": "date-time" },
+            "status": { "type": "string" }
+          }
+        }
+      ]
+    },
+    "match_result": {
+      "allOf": [
+        { "$ref": "#/$defs/versioned_base" },
+        {
+          "type": "object",
+          "required": ["job_id", "policy_version", "profile_version", "hard_filter_results", "score", "coverage", "decision"],
+          "properties": {
+            "job_id": { "type": "string" },
+            "policy_version": { "type": "integer" },
+            "profile_version": { "type": "integer" },
+            "hard_filter_results": { "type": "array", "items": { "type": "object" } },
+            "score": { "type": ["number", "null"], "minimum": 0, "maximum": 100 },
+            "coverage": { "type": "object" },
+            "decision": { "type": "string" }
+          }
+        }
+      ]
+    },
+    "resume_artifact": {
+      "allOf": [
+        { "$ref": "#/$defs/versioned_base" },
+        {
+          "type": "object",
+          "required": ["job_version", "profile_version", "template_version", "file_hash", "validation_result"],
+          "properties": {
+            "job_version": { "type": "integer" },
+            "profile_version": { "type": "integer" },
+            "template_version": { "type": "string" },
+            "file_hash": { "type": "string" },
+            "evidence_map_ref": { "type": "string" },
+            "validation_result": { "type": "string" }
+          }
+        }
+      ]
+    },
+    "application": {
+      "allOf": [
+        { "$ref": "#/$defs/versioned_base" },
+        {
+          "type": "object",
+          "required": ["durable_identity", "state", "job_snapshot", "resume_snapshot", "answer_snapshot", "authorization_version"],
+          "properties": {
+            "durable_identity": { "type": "string" },
+            "state": { "type": "string" },
+            "job_snapshot": { "type": "string" },
+            "resume_snapshot": { "type": ["string", "null"] },
+            "answer_snapshot": { "type": "array", "items": { "type": "string" } },
+            "authorization_version": { "type": ["string", "null"] }
+          }
+        }
+      ]
+    },
+    "pending_question": {
+      "allOf": [
+        { "$ref": "#/$defs/versioned_base" },
+        {
+          "type": "object",
+          "required": ["application_id", "field_context", "reason", "status"],
+          "properties": {
+            "application_id": { "type": "string" },
+            "field_context": { "type": "object" },
+            "reason": { "type": "string" },
+            "suggested_reuse_scope": { "type": ["object", "null"] },
+            "status": { "type": "string" },
+            "answer_ref": { "type": ["string", "null"] }
+          }
+        }
+      ]
+    }
+  }
+}
+

@@ -1,0 +1,45 @@
+# Python/build output
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+dist/
+build/
+*.egg-info/
+node_modules/
+
+# Local environments
+.venv/
+venv/
+.env
+.env.*
+!.env.example
+
+# Private candidate data and generated application artifacts
+private/
+space.db
+*.sqlite
+*.sqlite3
+*.db
+artifacts/
+screenshots/
+sessions/
+browser-profiles/
+downloads/
+
+# Sensitive document formats that should stay in private storage
+*.pdf
+*.doc
+*.docx
+*.tex
+*.rtf
+
+# Credentials and tokens
+*.pem
+*.key
+*.p12
+*.token
+credentials.json
+secrets.json

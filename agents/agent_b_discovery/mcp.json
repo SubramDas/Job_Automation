@@ -1,0 +1,19 @@
+{
+  "schema_version": "2026-09-23.phase02",
+  "agent_id": "agent_b_discovery",
+  "mode": "synthetic_dry_run",
+  "tools": [
+    {"name": "space.get_search_profile", "scope": "minimal search profile", "external_effect": "none"},
+    {"name": "jobs.search_sources", "scope": "manual and synthetic sources only", "external_effect": "none"},
+    {"name": "jobs.fetch_description", "scope": "allowed source capabilities only", "external_effect": "none"},
+    {"name": "jobs.save_job", "scope": "normalized job record", "external_effect": "local_draft"},
+    {"name": "jobs.get_job", "scope": "assigned job snapshot", "external_effect": "none"},
+    {"name": "jobs.evaluate_match", "scope": "policy-scoped match evaluation", "external_effect": "none"},
+    {"name": "review.create_question", "scope": "source or matching ambiguity", "external_effect": "review_queue"},
+    {"name": "review.get_question_status", "scope": "own questions", "external_effect": "none"},
+    {"name": "workflow.save_stage_result", "scope": "own assignment", "external_effect": "local_draft"},
+    {"name": "workflow.save_checkpoint", "scope": "own assignment", "external_effect": "local_draft"},
+    {"name": "workflow.get_assigned_task", "scope": "own assignment", "external_effect": "none"}
+  ]
+}
+

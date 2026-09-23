@@ -1,0 +1,27 @@
+{
+  "schema_version": "2026-09-23.phase04",
+  "description": "Project MCP tool contract shape. Runtime schemas are also enforced in app/mcp/runtime.py.",
+  "tool_contract": {
+    "required_fields": [
+      "name",
+      "input_required",
+      "output_fields",
+      "mutates",
+      "error_codes",
+      "max_payload_bytes"
+    ],
+    "mutation_values": [
+      "none",
+      "local_db",
+      "local_artifact",
+      "local_draft",
+      "review_queue",
+      "disabled"
+    ],
+    "notes": [
+      "Resource IDs are opaque application IDs, job IDs, artifact IDs, question IDs, or attempt IDs.",
+      "Tool results must not include credentials, cookies, browser sessions, raw salary/contact values outside the agent scope, or arbitrary file paths.",
+      "Live submission and production upload effects are disabled for Phase 04."
+    ]
+  }
+}

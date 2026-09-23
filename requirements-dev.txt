@@ -1,0 +1,4 @@
+# Optional development tools. The application foundation itself has no runtime dependency.
+pytest==9.1.1
+ruff==0.16.0
+
