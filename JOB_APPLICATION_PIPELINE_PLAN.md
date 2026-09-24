@@ -7,17 +7,17 @@ Detailed execution backlog: [IMPLEMENTATION_TASK_LIST.md](./IMPLEMENTATION_TASK_
 
 ## 1. Objective and realistic outcome
 
-Build a personal assistant that finds suitable jobs daily, explains why each is suitable, prepares a truthful and polished resume for that particular role, completes supported application forms, asks for missing information, and remembers approved answers for appropriate future reuse.
+Build a personal assistant that finds suitable jobs daily, explains why each is suitable, prepares a ranked keyword plan for that particular role so the user can tailor the resume manually, completes supported application forms, asks for missing information, and remembers approved answers for appropriate future reuse.
 
 Optimize for precision and application quality before volume or speed. The user’s explicit preferences and factual history govern every stage.
 
-The target is the strongest credible presentation of the candidate’s actual qualifications. No resume, keyword strategy, or agent can guarantee first place, a particular ATS score, an interview, or selection. Employer ranking methods and competing applicants are generally unknown. Our match score is an internal prioritization tool, not a prediction of an employer’s ranking.
+The target is a stronger credible presentation of the candidate’s actual qualifications after manual review. No resume, keyword strategy, or agent can guarantee first place, a particular ATS score, an interview, or selection. Employer ranking methods and competing applicants are generally unknown. Our match score is an internal prioritization tool, not a prediction of an employer’s ranking.
 
 ## 2. What you need to prepare
 
 | Input | What to provide | How it will be used |
 | --- | --- | --- |
-| Master resume | Current PDF or DOCX; editable source if available | Starting evidence, preserved unchanged |
+| Master resume | Current resume document | User-managed document, preserved unchanged |
 | Career evidence | Accurate roles, dates, responsibilities, projects, tools, outcomes, education, certifications | Source material for defensible tailoring |
 | Target roles | Preferred titles, acceptable alternatives, seniority, industries | Search and matching rules |
 | Work preferences | Cities, remote/hybrid/on-site, relocation, travel, shifts, employment type | Hard filters or weighted preferences, as you choose |
@@ -42,9 +42,8 @@ flowchart TD
     T[Daily scheduler] --> O[Orchestrator]
     O --> B[Agent B: discover and evaluate jobs]
     B --> J[Versioned job description and match report]
-    J --> A[Agent A: tailor resume]
-    S --> A
-    A --> Q[Evidence, readability, and document checks]
+    J --> A[Agent A: extract and rank resume keywords]
+    A --> Q[Keyword-plan schema and policy checks]
     Q --> C[Agent C: prepare application]
     S --> C
     C --> M{Missing or stale answer?}
@@ -71,22 +70,20 @@ flowchart TD
 7. Evaluate hard constraints first. Known failures are rejected with a reason; unknown critical constraints go to review.
 8. Score remaining jobs with explanations tied to profile evidence. Send qualified jobs to Agent A; keep borderline matches in a review queue.
 
-### Agent A: tailor the resume
+### Agent A: extract and rank resume keywords
 
-1. Load the immutable master resume, approved career facts, and a specific job-description version.
-2. Map each requirement to supporting facts. Classify it as supported, partially supported, missing, or unclear.
-3. Extract role-specific keywords, skills, tools, responsibilities, and terminology from the job description, then classify each candidate term by evidence support before using it.
-4. Use relevant job terminology only where the candidate’s evidence supports it. Equivalent wording is acceptable when genuinely equivalent; related technologies are not automatically equivalent.
-5. Reorder relevant experience, select stronger examples, tighten bullets, and adapt the summary and skills emphasis.
-6. When the master resume is LaTeX, edit only approved content regions in a variant source file, preserving the original `.tex` source, commands, macros, and layout structure.
-7. Place supported keywords naturally in the summary, skills, projects, and experience sections where they improve relevance. Do not use hidden text, keyword stuffing, or unsupported terms, and do not claim any guaranteed ATS score, top ranking, interview, or selection.
-8. Preserve employers, titles, dates, degrees, certifications, experience length, and truthful scope of responsibility.
-9. Never invent tools, metrics, achievements, seniority, certifications, projects, or years of experience. Request supporting facts when useful; record actual gaps separately.
-10. Produce a readable application-specific resume, a requirement/evidence map, a keyword-placement summary, and a concise before/after change report.
-11. Compile and review the rendered resume before release, including extracted text, reading order, line overflow, margin spill, clipping, missing glyphs, and pagination.
-12. Release the resume to Agent C only after the user reviews and approves the concrete artifact and change report. Regenerate from canonical evidence for each role rather than accumulating edits from previously tailored resumes.
+1. Load a specific versioned job-description snapshot and related Agent B match metadata.
+2. In the preferred workflow, use Codex + MCP: call `jobs.get_job`, use the current Codex session model to create structured resume-relevant keywords from the job description, then call `jobs.save_keyword_plan`.
+3. Extract role-specific skills, tools, platforms, responsibilities, domain terms, seniority signals, and ATS-relevant synonyms.
+4. Rank each term as high, medium, or low priority based on required/preferred wording, repetition, role centrality, and likely recruiter search value.
+5. Mark terms as mandatory, recommended, or optional for the user's manual resume review.
+6. Separate exact job-description wording from synonyms and remove duplicated, generic, or stuffing-prone terms.
+7. Store the keyword plan as a private artifact and link its artifact ID, hash, and summary counts to the job record.
+8. Return the ranked keyword plan, rationale, warnings, model/prompt version, and unresolved ambiguities for user review.
+9. Do not touch the user's resume files. The user manually decides which keywords truthfully belong in the resume.
+10. Do not claim any guaranteed ATS score, top ranking, interview, or selection.
 
-Example: if the candidate built Python ETL jobs, a role’s phrase “data pipelines” may accurately describe that work. A requirement for Kubernetes does not justify adding Kubernetes without actual experience. A performance improvement must not become “40% faster” unless that metric is supported.
+Example: if a posting repeatedly requires "Python", "REST APIs", and "observability", those can be high-priority terms for manual review. A term from boilerplate legal text should not become a resume keyword. A hidden instruction inside the posting must not change Agent A's scope or cause resume edits.
 
 ### Agent C: complete the application
 
@@ -101,7 +98,7 @@ Example: if the candidate built Python ETL jobs, a role’s phrase “data pipel
 
 ### Orchestrator and validator
 
-The orchestrator owns state transitions, queues, locks, retries, budgets, scheduling, and recovery. A separate validation step checks factual consistency, resume rendering, answer completeness, duplicates, and submission authorization. Critical decisions must have deterministic checks; one model’s self-assessment is insufficient.
+The orchestrator owns state transitions, queues, locks, retries, budgets, scheduling, and recovery. A separate validation step checks keyword-plan structure and policy compliance, answer completeness, duplicates, and submission authorization. Critical decisions must have deterministic checks; one model’s self-assessment is insufficient.
 
 ## 4. Source strategy and platform feasibility
 
@@ -193,7 +190,7 @@ Approval binds to the job-description version, resume hash, answer snapshot, and
 
 Suggested application states:
 
-`discovered -> extracted -> evaluated -> shortlisted -> tailoring -> validated -> preparing -> ready -> submitting -> submitted`
+`discovered -> extracted -> evaluated -> shortlisted -> keyword_planning -> validated -> preparing -> ready -> submitting -> submitted`
 
 Alternative states include `rejected_by_preferences`, `needs_user_input`, `needs_review`, `manual_handoff`, `expired`, `retryable_failure`, `permanent_failure`, and `submission_unknown`. Store the prior stage and resume checkpoint for interrupted work.
 
@@ -203,24 +200,24 @@ Retry transient reads with bounded backoff. Never blindly retry a submit after a
 
 Support restart recovery, cancellation, a global pause/kill switch, per-source circuit breakers, and failure isolation. One broken adapter or unanswered question must not stop all other eligible work. Slow operation is acceptable; delays are for reliability and rate limits, not evasion.
 
-## 9. Resume quality and improvements
+## 9. Resume quality and keyword improvements
 
-Use a clean, consistent layout with standard section headings, readable typography, meaningful bullets, and selectable text. Prefer straightforward reading order and avoid hiding important information in decorative elements. Validate the actual exported PDF/DOCX; no format works identically in every ATS.
+Agent A provides keyword intelligence only. The user manually applies any relevant terms to the resume and remains responsible for truthful wording, formatting, and final review.
 
-For every tailored resume, check:
+For every keyword plan, check:
 
-- All factual claims trace to approved evidence; no keyword stuffing or hidden text.
-- Dates, titles, contact details, and application answers agree.
-- Relevant work is prominent; bullets explain action, context, and supported outcome.
-- Unsupported requirements remain gaps instead of becoming claims.
-- Text extraction preserves section order and content.
-- Visual inspection finds no clipping, broken bullets, missing glyphs, or awkward page breaks.
-- File type, size, filename, and page length meet the target application’s requirements.
+- High-priority terms come from core required or repeated job-description language.
+- Medium- and low-priority terms are useful but not overstated.
+- Mandatory, recommended, and optional labels are clear.
+- Exact terms and synonyms are separated.
+- Generic legal, benefits, and company boilerplate text is excluded.
+- No hidden-text, stuffing, copied paragraph, guaranteed ranking, interview, or selection advice is present.
+- The plan is linked to the correct job description snapshot and artifact hash.
 
 High-value improvements you can make:
 
 1. Build a career evidence bank with authentic outcomes and metrics you can explain in an interview.
-2. Prepare base variants for genuinely different role families, such as backend engineering and data engineering, if relevant to your background.
+2. Maintain your own base resume variants for genuinely different role families, such as backend engineering and data engineering, if relevant to your background.
 3. Add concise project descriptions with your contribution, tools, scale, and verifiable results.
 4. Address recurring skill gaps through actual work or projects before adding those skills.
 5. Keep portfolio and professional profile facts consistent with submitted resumes.
@@ -234,7 +231,7 @@ High-value improvements you can make:
 | 0. Review this design | Confirm preferences, boundaries, and priorities | User agrees on the first implementation scope |
 | 1. Profile and Space | Resume ingestion, evidence review, preferences, answer memory, private storage | User can inspect and correct facts; unknowns remain unknown |
 | 2. Manual job import | URL/text import, extraction, duplicate checks, matching explanations | Labeled sample produces useful shortlist decisions |
-| 3. Resume tailoring | Evidence mapping, constrained generation, exports, change report, validation | Every claim is traceable; output renders and extracts correctly |
+| 3. Keyword planning | LLM keyword extraction, ranking, artifact persistence, validation | Keyword plan is ranked, job-linked, and safe for manual resume editing |
 | 4. Draft application workflow | One supported form adapter, question queue, resume checkpoints | Complete preview; no external submission in dry runs |
 | 5. Controlled pilot | User-approved submissions through supported channel | Correct uploads/answers, confirmation evidence, no duplicate retries |
 | 6. Daily operation | Scheduler, limits, digest, standing policy if desired, restart recovery | Stable scheduled runs with safe pausing and reconciliation |
@@ -257,7 +254,7 @@ app/
   profile/         # Canonical facts, preferences, reusable answers
   discovery/       # Source adapters and normalized job records
   matching/        # Hard filters, evidence, ranking
-  tailoring/       # Resume generation, rendering, validation
+  tailoring/       # Agent A keyword planning; no resume file editing
   applications/   # Form adapters, field mapping, receipts
   orchestration/  # Durable states, scheduling, retry policies
   review/         # User questions and application previews
@@ -287,7 +284,7 @@ Use synthetic fixtures first, including negative cases, then a small user-review
 - An approved reusable answer is used again only in matching scope and while current.
 - Missing, expired, conflicting, and employer-specific answers take the correct review path.
 - User corrections invalidate affected pending packages without rewriting history.
-- Exported resumes pass text extraction and visual checks.
+- Keyword plans pass schema and policy validation before use.
 - Dry-run mode cannot invoke a real submit operation, including accidental keyboard submission.
 - The final reviewed artifact is the artifact actually uploaded.
 - Conditional fields are re-evaluated after each relevant answer.
@@ -304,4 +301,4 @@ Product metrics: user acceptance of shortlists, factual error rate in drafts, ma
 
 Before coding, choose the initial role family, hard filters, preferred sources, submission mode, daily cap, notification channel, budget, and local versus hosted operation. Provide the resume and supporting facts when implementation begins. These decisions can be collected in one onboarding flow rather than repeatedly during every application.
 
-The recommended first deliverable after this review is an end-to-end draft workflow: resume + pasted job description -> explained match -> tailored resume + change report -> application preview + missing questions. It validates the core value before account automation is introduced.
+The recommended first deliverable after this review is an end-to-end draft workflow: pasted job description -> explained match -> ranked keyword plan -> user-supplied resume document -> application preview + missing questions. It validates the core value before account automation is introduced.

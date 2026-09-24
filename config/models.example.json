@@ -2,26 +2,36 @@
   "schema_version": "2026-09-23.phase01",
   "provider": {
     "name": "openai",
-    "status": "deferred_for_privacy_review",
+    "status": "approved_for_keyword_planning",
     "personal_data_allowed": false,
-    "notes": "Synthetic data only until provider/data-sharing/retention constraints are approved."
+    "live_llm_enabled_env": "AGENT_A_LIVE_LLM",
+    "api_key_env": "OPENAI_API_KEY",
+    "allowed_stages": [
+      "keyword_planning"
+    ],
+    "notes": "Only Agent A keyword planning is approved for provider use. Send job descriptions only; do not send resumes or candidate private facts."
   },
   "agents": {
     "agent_a_resume": {
-      "default_model": "gpt-5.4",
-      "fallback_models": [],
+      "default_model": "gpt-5.5",
+      "fallback_models": [
+        "gpt-5.6-terra"
+      ],
       "max_schema_repairs": 1
     },
     "agent_b_discovery": {
       "default_model": "gpt-5.4-nano",
-      "fallback_models": ["gpt-5.4-mini"],
+      "fallback_models": [
+        "gpt-5.4-mini"
+      ],
       "max_schema_repairs": 1
     },
     "agent_c_application": {
       "default_model": "gpt-5.4-mini",
-      "fallback_models": ["gpt-5.4"],
+      "fallback_models": [
+        "gpt-5.4"
+      ],
       "max_schema_repairs": 1
     }
   }
 }
-

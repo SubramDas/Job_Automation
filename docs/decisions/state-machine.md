@@ -4,7 +4,7 @@ Status: Phase 01 contract.
 
 Normal path:
 
-`discovered -> extracted -> evaluated -> shortlisted -> tailoring -> validated -> preparing -> ready -> submitting -> submitted`
+`discovered -> extracted -> evaluated -> shortlisted -> keyword_planning -> validated -> preparing -> ready -> submitting -> submitted`
 
 Alternate states:
 

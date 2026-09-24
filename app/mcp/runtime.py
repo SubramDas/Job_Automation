@@ -9,9 +9,11 @@ from __future__ import annotations
 import hashlib
 import json
 import time
+import zipfile
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable
+from xml.etree import ElementTree
 
 from app.core.agents import ALLOWED_TOOLS, AGENT_IDS, AgentPackage
 from app.core.config import ConfigError, _read_json
@@ -21,6 +23,7 @@ from app.discovery.source_adapters import AdapterError, SearchQuery, build_adapt
 from app.matching.evaluator import JobMatcher
 from app.profile.onboarding import OnboardingService
 from app.storage.space import SpaceError, SpaceStore, new_id, stable_json, utc_now
+from app.tailoring.keyword_planning import KEYWORD_PLAN_CONTENT_TYPE, create_keyword_plan, save_keyword_plan
 
 MAX_TOOL_PAYLOAD_BYTES = 64 * 1024
 MAX_TEXT_PAYLOAD_CHARS = 50_000
@@ -38,10 +41,8 @@ PHASE04_TOOL_NAMES: tuple[str, ...] = (
     "jobs.save_job",
     "jobs.get_job",
     "jobs.evaluate_match",
-    "documents.extract_resume",
-    "documents.render_resume",
-    "documents.extract_text",
-    "documents.render_preview",
+    "jobs.create_keyword_plan",
+    "jobs.save_keyword_plan",
     "documents.get_artifact",
     "review.create_question",
     "review.get_question_status",
@@ -213,12 +214,10 @@ class Phase04Services:
             ("jobs.search_sources", ("source_id",), ("source", "status"), "none", self.search_sources),
             ("jobs.fetch_description", ("source_id", "url"), ("status",), "none", self.fetch_description),
             ("jobs.save_job", ("source_id", "url", "description"), ("job_id",), "local_db", self.save_job),
-            ("jobs.get_job", ("job_id",), ("job",), "none", self.get_job),
+            ("jobs.get_job", ("job_id",), ("job", "description"), "none", self.get_job),
             ("jobs.evaluate_match", ("job_id",), ("decision",), "none", self.evaluate_match),
-            ("documents.extract_resume", ("artifact_id",), ("artifact_id", "status"), "none", self.extract_resume),
-            ("documents.render_resume", ("draft",), ("status",), "local_artifact", self.render_resume),
-            ("documents.extract_text", ("artifact_id",), ("text",), "none", self.extract_text),
-            ("documents.render_preview", ("artifact_id",), ("status",), "local_artifact", self.render_preview),
+            ("jobs.create_keyword_plan", ("job_id",), ("status", "keyword_plan_artifact_id"), "local_artifact", self.create_keyword_plan),
+            ("jobs.save_keyword_plan", ("job_id", "keywords"), ("status", "keyword_plan_artifact_id"), "local_artifact", self.save_keyword_plan),
             ("documents.get_artifact", ("artifact_id",), ("artifact",), "none", self.get_artifact),
             ("review.create_question", ("field_context", "reason"), ("question_id",), "review_queue", self.create_question),
             ("review.get_question_status", ("question_id",), ("question",), "none", self.get_question_status),
@@ -377,9 +376,16 @@ class Phase04Services:
                 "SELECT * FROM match_results WHERE job_id = ? ORDER BY created_at DESC LIMIT 1",
                 (job_id,),
             ).fetchone()
+            artifact = db.execute(
+                "SELECT * FROM artifacts WHERE id = ? ORDER BY version DESC LIMIT 1",
+                (row["snapshot_artifact_id"],) if row is not None else ("",),
+            ).fetchone()
         if row is None:
             raise MCPError("missing_fact", "unknown job id")
-        payload = {"job": dict(row)}
+        description = ""
+        if artifact is not None:
+            description = Path(artifact["storage_path"]).read_text(encoding="utf-8")
+        payload = {"job": dict(row), "description": description}
         if extraction is not None:
             payload["extraction"] = {
                 "id": extraction["id"],
@@ -411,22 +417,42 @@ class Phase04Services:
             "review_reasons": result.review_reasons,
         }
 
-    def extract_resume(self, context: ToolContext, args: dict[str, Any]) -> dict[str, Any]:
-        return {"artifact_id": self._artifact(args["artifact_id"], context)["id"], "status": "controlled_parser_required"}
+    def create_keyword_plan(self, context: ToolContext, args: dict[str, Any]) -> dict[str, Any]:
+        job_id = args["job_id"]
+        if context.assigned_job_ids and job_id not in context.assigned_job_ids:
+            raise MCPError("authorization_failed", "job is outside this task scope")
+        result = create_keyword_plan(self.store, project_root=self.project_root, job_id=job_id)
+        return self._keyword_plan_response(result)
 
-    def render_resume(self, context: ToolContext, args: dict[str, Any]) -> dict[str, Any]:
-        return {"status": "unsupported_until_phase06", "draft_hash": sha256_text(stable_json(args["draft"]))}
+    def save_keyword_plan(self, context: ToolContext, args: dict[str, Any]) -> dict[str, Any]:
+        job_id = args["job_id"]
+        if context.assigned_job_ids and job_id not in context.assigned_job_ids:
+            raise MCPError("authorization_failed", "job is outside this task scope")
+        result = save_keyword_plan(
+            self.store,
+            job_id=job_id,
+            keywords=args["keywords"],
+            warnings=args.get("warnings"),
+            model=args.get("model"),
+            prompt_version=args.get("prompt_version", "agent-a-keyword-plan-v1"),
+        )
+        return self._keyword_plan_response(result)
 
-    def extract_text(self, context: ToolContext, args: dict[str, Any]) -> dict[str, Any]:
-        artifact = self._artifact(args["artifact_id"], context)
-        path = Path(artifact["storage_path"])
-        if artifact["content_type"] != "text/plain":
-            return {"text": "", "status": "unsupported_content_type"}
-        return {"text": path.read_text(encoding="utf-8"), "status": "extracted"}
-
-    def render_preview(self, context: ToolContext, args: dict[str, Any]) -> dict[str, Any]:
-        self._artifact(args["artifact_id"], context)
-        return {"status": "unsupported_until_phase06"}
+    def _keyword_plan_response(self, result: Any) -> dict[str, Any]:
+        return {
+            "status": result.status,
+            "job_id": result.job_id,
+            "keyword_plan_id": result.keyword_plan_id,
+            "keyword_plan_artifact_id": result.artifact.artifact_id,
+            "keyword_plan_sha256": result.artifact.sha256,
+            "content_type": result.artifact.content_type,
+            "priority_counts": result.plan["priority_counts"],
+            "mandate_counts": result.plan["mandate_counts"],
+            "keywords": result.plan["keywords"],
+            "warnings": result.plan["warnings"],
+            "validation": result.validation,
+            "model": result.plan["model"],
+        }
 
     def get_artifact(self, context: ToolContext, args: dict[str, Any]) -> dict[str, Any]:
         artifact = self._artifact(args["artifact_id"], context)
@@ -601,3 +627,14 @@ def validate_phase04_tool_coverage(packages: tuple[AgentPackage, ...], registry:
         missing = set(ALLOWED_TOOLS[package.agent_id]) - implemented
         if missing:
             raise ConfigError(f"{package.agent_id} has unimplemented Phase 04 tools: {sorted(missing)}")
+
+
+def _extract_docx_text(path: Path) -> str:
+    try:
+        with zipfile.ZipFile(path) as docx:
+            xml = docx.read("word/document.xml")
+    except (KeyError, zipfile.BadZipFile):
+        return ""
+    root = ElementTree.fromstring(xml)
+    namespace = {"w": "http://schemas.openxmlformats.org/wordprocessingml/2006/main"}
+    return "\n".join(node.text for node in root.findall(".//w:t", namespace) if node.text)

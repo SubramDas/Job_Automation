@@ -61,6 +61,109 @@ python3 -m app.discovery.agent_b_run --sources jobspipe_candidate --max-results 
 Use `--json` for machine-readable CLI output. The detailed JSON and Markdown run reports are
 stored as private artifacts and referenced by opaque artifact IDs in the command output.
 
+## Agent A keyword planning
+
+Agent A's preferred workflow is Codex + MCP. You give Codex a saved `job_id`; Codex calls
+the project MCP tools to read the job description, uses the current Codex model to create
+the ranked keyword plan, and saves that plan back to Space. Agent A does not read, edit,
+or approve any resume file.
+
+Use this from Codex:
+
+```text
+Run Agent A keyword planning for job_id job_xxx. Read the job through MCP, extract
+resume-relevant keywords, rank them high/medium/low, mark mandatory/recommended/optional,
+store the keyword plan artifact, and show me the summary.
+```
+
+The MCP tool sequence is:
+
+1. `jobs.get_job` with the assigned `job_id`.
+2. Codex generates the structured keyword plan from the job description only.
+3. `jobs.save_keyword_plan` with the ranked keywords, warnings, and model metadata.
+
+The older direct Python runner remains as a local fallback/testing path. It can use the
+deterministic extractor and, if configured, the OpenAI Responses API. It cannot use the
+Codex chat model from a plain terminal process.
+
+Save a job description locally when you want to run Agent A without an existing Agent B job:
+
+```bash
+mkdir -p private/inputs
+$EDITOR private/inputs/job.txt
+```
+
+Run Agent A directly from a job description file:
+
+```bash
+python3 -m app.tailoring.agent_a_run \
+  --job-description-file private/inputs/job.txt \
+  --job-url "https://example.com/job-posting"
+```
+
+Use JSON output when you want artifact IDs and keyword details in a machine-readable form:
+
+```bash
+python3 -m app.tailoring.agent_a_run \
+  --job-description-file private/inputs/job.txt \
+  --job-url "https://example.com/job-posting" \
+  --json
+```
+
+If Agent B already saved the job, run Agent A with the existing job ID:
+
+```bash
+python3 -m app.tailoring.agent_a_run \
+  --job-id job_xxx
+```
+
+Agent B run reports show `job_id` values in their detailed JSON artifacts. To inspect recent
+private JSON artifacts for saved job IDs:
+
+```bash
+python3 - <<'PY'
+import json
+from pathlib import Path
+
+for path in sorted(Path("private/artifacts").glob("artifact_*/v*.json"))[-10:]:
+    data = json.loads(path.read_text())
+    for row in data.get("rows", []):
+        if row.get("job_id"):
+            print(row["job_id"], "-", row.get("title"), "-", row.get("company"), "from", path)
+PY
+```
+
+Agent A prints and stores the keyword-plan artifact ID, the job ID, priority counts, and any
+warnings. The keyword plan is linked to the job record so you can manually update your own
+resume using the high/medium/low terms.
+
+### Agent A model configuration
+
+For the preferred Codex + MCP workflow, model choice is controlled by the Codex session you
+are using. The project does not need an `OPENAI_API_KEY` for that path.
+
+The fallback Python runner is configured for optional OpenAI keyword planning in
+`config/models.example.json`:
+
+- `gpt-5.5` is the current fallback-runner default in this workspace because the user wants
+  a low-cost model where available.
+- `gpt-5.6-terra` is the fallback for ambiguous postings or schema repair.
+- Provider use is limited to `keyword_planning`; Agent A must not send resumes or candidate
+  private facts to the provider.
+
+Set your key and live flag in `.env` only if you want the fallback runner to use the
+OpenAI Responses API directly:
+
+```bash
+OPENAI_API_KEY=your_key_here
+AGENT_A_LIVE_LLM=true
+```
+
+Live calls use structured JSON output, `store: false`, and send only the job description. If
+the API call fails, Agent A records a `live_llm_fallback` warning and uses the deterministic
+local extractor so the run still produces a reviewable keyword plan. Keep
+`AGENT_A_LIVE_LLM=false` when you want local-only behavior.
+
 Jobicy does not require an API key, but its source attribution and canonical URL must be
 preserved in any displayed listing. Other candidates such as Adzuna and USAJOBS require API
 keys before they can be enabled.

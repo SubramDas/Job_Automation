@@ -1,2 +1,1 @@
-"""Resume tailoring module placeholder for Phase 06."""
-
+"""Agent A keyword planning module for Phase 06."""

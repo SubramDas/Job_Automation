@@ -50,8 +50,14 @@ def validate_config(config_dir: Path) -> ValidationResult:
     storage = _read_json(config_dir / "storage.example.json")
 
     _require_keys(models, {"schema_version", "provider", "agents"}, "models")
-    if models["provider"]["status"] != "deferred_for_privacy_review":
-        raise ConfigError("models.provider.status must remain deferred in Phase 01")
+    _require_keys(models["provider"], {"name", "status", "personal_data_allowed"}, "models.provider")
+    allowed_provider_statuses = {"deferred_for_privacy_review", "approved_for_keyword_planning"}
+    if models["provider"]["status"] not in allowed_provider_statuses:
+        raise ConfigError("models.provider.status must be deferred or approved only for keyword planning")
+    if models["provider"]["status"] == "approved_for_keyword_planning":
+        allowed_stages = set(models["provider"].get("allowed_stages", []))
+        if allowed_stages != {"keyword_planning"}:
+            raise ConfigError("approved provider use must be limited to keyword_planning")
     for agent_name, agent_config in models["agents"].items():
         _require_keys(agent_config, {"default_model", "fallback_models", "max_schema_repairs"}, agent_name)
         if agent_config["max_schema_repairs"] > 1:

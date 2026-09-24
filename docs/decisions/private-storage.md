@@ -5,8 +5,8 @@ Status: Phase 01 contract.
 ## Boundary
 
 Private candidate data belongs under `private/` for local development and is ignored by Git.
-This includes resumes, LaTeX sources, PDFs, DOCX files, compensation data, answer snapshots,
-browser sessions, screenshots, generated resume artifacts, SQLite databases, and credentials.
+This includes resumes, PDFs, DOCX files, compensation data, answer snapshots,
+browser sessions, screenshots, generated keyword-plan artifacts, SQLite databases, and credentials.
 
 The example paths are defined in `config/storage.example.json`:
 

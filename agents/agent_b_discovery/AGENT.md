@@ -34,7 +34,7 @@ private files, or authorize automation.
 
 Allowed tool families: minimal `space.get_search_profile`, `jobs` discovery/retrieval/save
 and matching tools, contextual review questions, and own-task workflow checkpoint/result
-tools. Agent B has no resume rendering, form filling, upload, account login, or submission
+tools. Agent B has no resume editing, form filling, upload, account login, or submission
 authority.
 
 ## Boundaries

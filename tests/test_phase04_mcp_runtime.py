@@ -131,8 +131,8 @@ class Phase04MCPRuntimeTests(unittest.TestCase):
         )
         blocked = router.route(
             agent_id="agent_a_resume",
-            stage="resume_tailoring",
-            payload={"contains_personal_data": True, "resume": "private synthetic payload"},
+            stage="keyword_planning",
+            payload={"contains_personal_data": True, "job_description": "private synthetic payload"},
             output_schema={"type": "object"},
         )
         exhausted = router.route(

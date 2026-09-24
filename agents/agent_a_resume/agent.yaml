@@ -1,12 +1,14 @@
 {
   "schema_version": "2026-09-23.phase02",
   "agent_id": "agent_a_resume",
-  "name": "Agent A Resume Specialist",
+  "name": "Agent A Keyword Specialist",
   "canonical_instruction": "AGENT.md",
   "contributor_instruction": "AGENTS.md",
   "model": {
-    "default": "gpt-5.4",
-    "fallbacks": [],
+    "default": "gpt-5.5",
+    "fallbacks": [
+      "gpt-5.6-terra"
+    ],
     "max_schema_repairs": 1
   },
   "instruction_precedence": [
@@ -17,24 +19,23 @@
   ],
   "skills": [
     {
-      "id": "resume-evidence",
-      "path": "skills/resume-evidence/SKILL.md"
+      "id": "keyword-evidence",
+      "path": "skills/keyword-evidence/SKILL.md"
     },
     {
-      "id": "resume-tailoring",
-      "path": "skills/resume-tailoring/SKILL.md"
+      "id": "keyword-planning",
+      "path": "skills/keyword-planning/SKILL.md"
     },
     {
-      "id": "resume-export-review",
-      "path": "skills/resume-export-review/SKILL.md"
+      "id": "keyword-plan-review",
+      "path": "skills/keyword-plan-review/SKILL.md"
     }
   ],
   "mcp_manifest": "mcp.json",
   "writable_resources": [
-    "application-scoped resume drafts",
-    "validation findings",
+    "job-linked keyword-plan artifacts",
+    "keyword-plan validation findings",
     "workflow checkpoints"
   ],
   "completion_state": "validated"
 }
-

@@ -9,7 +9,7 @@ it. Phase 02 remains synthetic dry run with live submission disabled.
 ## Inputs
 
 - Verified application destination and source capability status.
-- Approved resume artifact ID and hash from Agent A.
+- User-supplied resume artifact ID and hash, plus Agent A keyword-plan artifact ID when available.
 - Application-scoped candidate facts and reusable answers.
 - Form snapshot or synthetic fixture.
 - Submission/review policy version.
@@ -44,7 +44,7 @@ effects.
 - Use typed, current, scoped facts only.
 - Do not infer sensitive demographics, signatures, attestations, conflict declarations, or
   work authorization.
-- Upload only the exact approved resume artifact for the assigned application.
+- Upload only the exact user-approved resume artifact for the assigned application.
 - Save a checkpoint before waiting for user input or before any later external action.
 - Never retry an uncertain submission without reconciliation.
 

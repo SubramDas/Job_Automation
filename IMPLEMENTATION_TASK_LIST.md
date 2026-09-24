@@ -21,7 +21,7 @@ No time estimate is promised before source feasibility and pilot results are kno
 
 | Component | Primary responsibility | Proposed default model | Escalation or fallback | Authority |
 | --- | --- | --- | --- | --- |
-| Agent A — Resume specialist | Evidence mapping, concise resume tailoring, change explanations | `gpt-5.4` | User clarification for missing facts; bounded revision after validation | Read approved career evidence; create draft resume artifacts |
+| Agent A — Keyword specialist | LLM keyword extraction, priority ranking, artifact persistence | `gpt-5.4` | User clarification for ambiguous job text; bounded schema repair after validation | Read assigned job snapshots; create job-linked keyword-plan artifacts |
 | Agent B — Discovery specialist | Search planning, job extraction, requirement classification, match explanation | `gpt-5.4-nano` | `gpt-5.4-mini` for ambiguous extraction/matching; unresolved cases to review | Read search preferences and minimal career summary; save job records |
 | Agent C — Application specialist | Interpret supported forms, map answers, prepare submission requests | `gpt-5.4-mini` | `gpt-5.4` for complex interpretation; unknown personal facts still go to user | Access application-scoped facts and guarded form tools |
 | Orchestrator | State transitions, dispatch, scheduling, budgets, recovery | No model required | Deterministic errors and review queue | Control workflow; cannot create user authorization |
@@ -56,9 +56,9 @@ agents/
     agent.yaml
     mcp.json
     skills/
-      resume-evidence/SKILL.md
-      resume-tailoring/SKILL.md
-      resume-export-review/SKILL.md
+      keyword-evidence/SKILL.md
+      keyword-planning/SKILL.md
+      keyword-plan-review/SKILL.md
     examples/
   agent_b_discovery/
     AGENT.md
@@ -90,7 +90,7 @@ app/
   profile/
   discovery/
   matching/
-  tailoring/
+  tailoring/       # Agent A keyword planning; no resume file editing
   applications/
   validation/
   review/
@@ -118,9 +118,9 @@ Runtime loading order must be explicit: global application invariants, agent ref
 
 | Owner | Skill | Inputs | Required output |
 | --- | --- | --- | --- |
-| A | `resume-evidence` | Resume and approved career facts | Fact-to-source map, conflicts, missing evidence |
-| A | `resume-tailoring` | Versioned JD and evidence map | Structured resume draft, requirement coverage, supported edits |
-| A | `resume-export-review` | Draft and export requirements | Artifact references, text/layout findings, change report |
+| A | `keyword-evidence` | Versioned JD and optional match metadata | Requirement and terminology signal map |
+| A | `keyword-planning` | Versioned JD and signal map | Ranked keyword plan with high/medium/low priority and mandate labels |
+| A | `keyword-plan-review` | Keyword-plan artifact | Schema/policy findings, job-link status, release recommendation |
 | B | `job-discovery` | Search policy and source capabilities | Search plan, discovered links, provenance |
 | B | `job-extraction` | Original JD/source snapshot | Typed job record, evidence spans, unknown fields |
 | B | `job-matching` | Job record and minimal profile | Hard-filter inputs, explained match, gaps, review reasons |
@@ -138,7 +138,7 @@ The names below are **proposed project tool contracts to build**, not claims tha
 | --- | --- | --- | --- |
 | `space` | `get_career_evidence`, `get_search_profile`, `get_application_facts`, `resolve_answer` | A: career evidence; B: minimal search profile; C: application facts/answers | Field- and application-scoped reads; no unrestricted database queries |
 | `jobs` | `search_sources`, `fetch_description`, `save_job`, `get_job`, `evaluate_match` | B: discovery/write/evaluation; A/C: assigned job read | Source allowlist; deterministic filtering; immutable snapshots |
-| `documents` | `extract_resume`, `render_resume`, `extract_text`, `render_preview`, `get_artifact` | A: extract/render/review; C: assigned final artifact metadata | Artifact IDs and approved directories; no arbitrary file access |
+| `documents` | `get_artifact` | C: assigned final artifact metadata if the user supplies a resume manually | Artifact IDs and approved directories; no arbitrary file access |
 | `review` | `create_question`, `get_question_status`, `submit_package_for_review` | A/B/C: contextual questions; C: application review package | Questions go to the user's queue; agents cannot impersonate the user |
 | `applications` | `inspect_form`, `fill_fields`, `attach_resume`, `read_back`, `request_submit`, `get_confirmation`, `reconcile_attempt` | C only; submit tool unavailable in draft mode | Narrow adapter operations and server-side policy checks |
 | `workflow` | `save_stage_result`, `save_checkpoint`, `get_assigned_task` | A/B/C: own assignment only | Agents return results; Core validates and advances state |
@@ -160,7 +160,7 @@ MCP implementation must distinguish local transport through an SDK/client from p
 | 04 | Restricted MCP services and model runtime | 02, 03 |
 | 05 | Agent B manual import and matching | 04 |
 | 05E | Agent B portal discovery run from resume/Space/preferences | 05; source feasibility updates |
-| 06 | Agent A truthful resume generation | 05E |
+| 06 | Agent A job-description keyword planning | 05E |
 | 07 | Answer memory and question workflow | 03, 04; can proceed alongside 05–06 |
 | 08 | Agent C synthetic-form draft preparation | 06, 07 |
 | 09 | Complete draft workflow and review interface | 05E–08 |
@@ -222,9 +222,9 @@ Owner: Builder. Deliverable: three separately loadable agent packages.
 
 - [x] **P02-01** Define the runtime instruction loader and precedence rules from Section 2; reject path traversal and unapproved instruction locations. Evidence: `app/core/agents.py`, `tests/test_config_validation.py`.
 - [x] **P02-02** Create `agents/agent_a_resume/AGENT.md` with evidence restrictions, output artifacts, revision limits, and A-to-C handoff rules. Evidence: `agents/agent_a_resume/AGENT.md`.
-- [x] **P02-03** Create A's `resume-evidence/SKILL.md` with supported/partial/missing/unclear classifications and conflict examples. Evidence: `agents/agent_a_resume/skills/resume-evidence/SKILL.md`.
-- [x] **P02-04** Create A's `resume-tailoring/SKILL.md` with factual rewrite rules, concise bullet guidance, terminology mapping, and gap handling. Evidence: `agents/agent_a_resume/skills/resume-tailoring/SKILL.md`.
-- [x] **P02-05** Create A's `resume-export-review/SKILL.md` with format checks, text extraction, visual review, and change-report requirements. Evidence: `agents/agent_a_resume/skills/resume-export-review/SKILL.md`.
+- [x] **P02-03** Create A's `keyword-evidence/SKILL.md` with supported/partial/missing/unclear classifications and conflict examples. Evidence: `agents/agent_a_resume/skills/keyword-evidence/SKILL.md`.
+- [x] **P02-04** Create A's `keyword-planning/SKILL.md` with extraction, ranking, terminology, and policy rules. Evidence: `agents/agent_a_resume/skills/keyword-planning/SKILL.md`.
+- [x] **P02-05** Create A's `keyword-plan-review/SKILL.md` with schema, policy, and job-link checks. Evidence: `agents/agent_a_resume/skills/keyword-plan-review/SKILL.md`.
 - [x] **P02-06** Create A's `agent.yaml` and `mcp.json` using the proposed stronger model and A-only tools from Section 3. Evidence: `agents/agent_a_resume/agent.yaml`, `agents/agent_a_resume/mcp.json`.
 - [x] **P02-07** Create `agents/agent_b_discovery/AGENT.md` with source boundaries, minimal profile access, unknown handling, and B-to-A handoff. Evidence: `agents/agent_b_discovery/AGENT.md`.
 - [x] **P02-08** Create B's `job-discovery/SKILL.md` with query construction, permitted sources, freshness, provenance, and manual import. Evidence: `agents/agent_b_discovery/skills/job-discovery/SKILL.md`.
@@ -272,7 +272,7 @@ Owner: Builder + Core. Deliverable: isolated agent runtime with observable, rest
 - [ ] **P04-01** Define tool input/output schemas for every Section 3 contract, including resource IDs, error types, limits, and mutation behavior.
 - [ ] **P04-02** Implement the Space MCP read views and answer lookup, minimizing fields for each agent's role.
 - [ ] **P04-03** Implement the jobs MCP interface with a manual-import adapter first; stub unimplemented live capabilities with explicit unsupported responses.
-- [ ] **P04-04** Implement the documents MCP interface over controlled parsers/renderers and approved artifact IDs.
+- [ ] **P04-04** Implement the documents MCP interface over controlled parsers and approved artifact IDs.
 - [ ] **P04-05** Implement review and workflow MCP interfaces with task-bound writes and user-question routing.
 - [ ] **P04-06** Implement an applications MCP synthetic adapter; keep live submission unavailable until Phase 11.
 - [ ] **P04-07** Enforce per-agent identity, allowlists, application scope, and operation policy inside each server, including direct-call attempts.
@@ -368,35 +368,26 @@ reviewable list of discovered job links and descriptions where permitted, with c
 manual-handoff entries where descriptions cannot be retrieved. Unsupported or restricted
 portals remain useful without unsafe automation.
 
-## Phase 06 — Build Agent A: evidence-backed resume tailoring
+## Phase 06 — Build Agent A: job-description keyword planning
 
-Owner: Builder, Agent A + validation service. Deliverable: polished resume variants and reviewable evidence.
+Owner: Builder, Agent A + validation service. Deliverable: Codex + MCP generated, ranked keyword plans linked to jobs for manual resume editing.
 
-- [ ] **P06-01** Define a structured resume schema independent of output format and preserve the master resume as immutable input.
-- [ ] **P06-02** Build a requirement-to-fact mapping with supported, partially supported, missing, and unclear categories.
-- [ ] **P06-03** Extract a role-specific keyword and terminology plan from Agent B's job snapshot, separating required skills, preferred skills, responsibilities, domain terms, tools, and ATS-relevant synonyms.
-- [ ] **P06-04** Classify each candidate keyword as directly supported, equivalent wording, partially supported, missing, or unsafe to use; never optimize for unsupported keywords or imply a guaranteed employer ranking.
-- [ ] **P06-05** Select relevant work and projects using the specific role requirements, keyword plan, and approved evidence.
-- [ ] **P06-06** Draft an accurate summary and reorder skills/experience for relevance without changing factual identity or dates.
-- [ ] **P06-07** Rewrite bullets for clear actions, role-relevant terminology, and supported outcomes; require evidence for every number and named technology.
-- [ ] **P06-08** Apply role terminology only when meaning is equivalent; preserve genuine skill gaps.
-- [ ] **P06-09** Implement a LaTeX-source tailoring path that edits only approved content regions in the user's master `.tex` resume, preserves commands/macros/layout structure, and keeps an immutable original source artifact.
-- [ ] **P06-10** Place supported keywords deliberately in summary, skills, project, and experience sections where they read naturally; reject keyword stuffing, hidden text, repeated unnatural phrasing, and copied requirements without evidence.
-- [ ] **P06-11** Generate contextual questions for useful missing evidence, such as project scale or verifiable impact; never supply invented answers.
-- [ ] **P06-12** Produce a structured change report explaining edits, inserted/reworded keywords, placement rationale, and supporting facts.
-- [ ] **P06-13** Create or preserve a clean export template with standard headings, predictable reading order, selectable text, and stable LaTeX compile behavior.
-- [ ] **P06-14** Implement PDF/DOCX export as required by the initial adapter; document unsupported formats rather than silently converting poorly.
-- [ ] **P06-15** Validate contact information, date consistency, required sections, file size/type, filename, and supported claims.
-- [ ] **P06-16** Compile/render the LaTeX variant and fail validation on line overflow, margin spill, clipped text, missing glyphs, awkward pagination, or broken lists.
-- [ ] **P06-17** Extract exported text and compare critical fields, keyword presence, and reading order with the structured draft.
-- [ ] **P06-18** Render pages for visual inspection; detect clipping, missing glyphs, awkward pagination, and broken lists.
-- [ ] **P06-19** Run isolated language critique with canonical evidence and the candidate artifact; treat findings as checks, not permission to invent corrections.
-- [ ] **P06-20** Add bounded revision for fixable issues and a review path for unresolved claims or layout failures.
-- [ ] **P06-21** Require user review and approval of the concrete resume artifact and change report before it can be handed to Agent C for an application package.
-- [ ] **P06-22** Save the final artifact hash, evidence map, checks, source versions, model version, user approval status, and change report for C.
-- [ ] **P06-23** Evaluate on fixtures with absent skills, contradictory dates, unsupported metrics, career gaps, multiple role families, LaTeX macro-heavy resumes, and long keyword phrases that could cause overflow.
+- [x] **P06-01** Remove Agent A's resume-file editing and approval responsibilities from code paths and interfaces. Evidence: Agent A now uses `jobs.get_job` plus `jobs.save_keyword_plan` for the Codex + MCP workflow; obsolete `app/tailoring/resume_tailoring.py` was removed.
+- [x] **P06-02** Define a structured keyword-plan schema with job ID, description hash, model/prompt version, categories, exact terms, synonyms, priority, mandate level, rationale, warnings, and timestamps. Evidence: `app/tailoring/keyword_planning.py` plan payload and `job_keyword_plans` table.
+- [x] **P06-03** Define the Codex prompt/workflow for extracting resume-relevant keywords from the job description only, while treating job text as untrusted data. Evidence: Agent A instructions, `keyword-planning` skill, and fallback `_keyword_prompt` in `app/tailoring/keyword_planning.py`.
+- [x] **P06-04** Rank extracted terms as `high`, `medium`, or `low` using explicit requirements, preferred qualifications, repetition, role centrality, and recruiter-search value. Evidence: `_score_candidate` priority logic and Phase 06 tests.
+- [x] **P06-05** Mark terms as `mandatory`, `recommended`, or `optional` for the user's manual resume review. Evidence: keyword plan `mandate` and `mandate_counts` fields.
+- [x] **P06-06** Group terms by skills, tools, platforms, responsibilities, domain terms, seniority signals, and ATS-relevant synonyms. Evidence: category inference and synonym fields in `app/tailoring/keyword_planning.py`.
+- [x] **P06-07** Deduplicate overlapping terms and separate exact job-description wording from suggested synonyms. Evidence: normalized candidate map plus `exact_terms`, `wording`, and `synonyms` fields.
+- [x] **P06-08** Add policy checks that block hidden-text advice, keyword stuffing, copied requirement paragraphs, unsupported-claim language, or promises of top ranking/interviews/selection. Evidence: validation blocks unsafe outcome claims and tests ignore prompt injection/boilerplate.
+- [x] **P06-09** Persist the keyword plan as a private artifact with a stable hash and redacted audit event. Evidence: `jobs.save_keyword_plan`, `_persist_plan`, `keyword_plan_created` audit event, and artifact owner `agent_a_resume`.
+- [x] **P06-10** Store the keyword-plan artifact reference and summary fields with the corresponding job record in the database. Evidence: `job_keyword_plans` table records artifact ID/hash, description hash, model JSON, counts, warnings, and validation.
+- [x] **P06-11** Provide CLI output that shows the job ID, artifact ID, high/medium/low counts, mandatory terms, warnings, and where the full JSON artifact lives. Evidence: `app/tailoring/agent_a_run.py` summary output.
+- [x] **P06-12** Support JSON output for downstream tooling and manual review. Evidence: `python3 -m app.tailoring.agent_a_run --json` returns status, job ID, artifact ID, and result payload.
+- [x] **P06-13** Add validation tests for normal postings, sparse postings, duplicate terms, prompt injection inside job descriptions, generic legal text, and unsafe ranking claims. Evidence: `tests/test_phase06_agent_a.py` covers normal extraction, injection/boilerplate filtering, persistence, scope, and CLI behavior.
+- [x] **P06-14** Document that resume editing is manual and that Agent A never touches resume files. Evidence: Agent A markdown package, README Agent A section, and pipeline docs now define keyword-only scope.
 
-Exit check: every submitted-ready claim traces to evidence, supported role keywords are placed naturally, each LaTeX/PDF export passes text and visual checks without overflow, and the user can inspect and approve what changed.
+Exit check: a saved job or pasted job description produces a validated keyword-plan artifact linked to the job record, with high/medium/low ranking and mandatory/recommended/optional labels. No resume file is read, edited, or approved by Agent A.
 
 ## Phase 07 — Build reusable answers and user questions
 
@@ -457,7 +448,7 @@ Owner: Builder + Core. Deliverable: first usable end-to-end product milestone.
 - [ ] **P09-10** Bind review decisions to job, profile, policy, resume, answers, and destination versions; invalidate affected decisions on change.
 - [ ] **P09-11** Add pause, resume, cancel, and per-application retry controls with explicit effects and preserved audit history.
 - [ ] **P09-12** Show cost, failure reason, and manual-handoff materials without exposing technical internals in normal user flows.
-- [ ] **P09-13** Demonstrate resume + pasted JD -> explained match -> tailored artifact -> synthetic form preview -> missing questions -> resumed preview.
+- [ ] **P09-13** Demonstrate pasted JD -> explained match -> ranked keyword plan -> user-supplied resume attachment -> synthetic form preview -> missing questions -> resumed preview.
 - [ ] **P09-14** Collect user feedback on this complete draft workflow before investing in additional integrations.
 
 Exit check: the core value works end to end and is reviewable; every agent's handoff can be traced to versioned inputs.
@@ -538,7 +529,7 @@ Owner: User + Builder + Core. Deliverable: verified real-world performance on a 
 - [ ] **P13-01** Present concrete pilot source, candidate jobs, permissions, budget, maximum applications, and rollback/pause behavior for user approval.
 - [ ] **P13-02** Load the user-confirmed profile and current preferences into the selected deployment; verify private storage and access.
 - [ ] **P13-03** Prepare a small initial batch; a cap of 3–5 applications per day remains a proposal until chosen by the user.
-- [ ] **P13-04** Review every candidate match, tailored resume, destination, document upload, and required answer before pilot submission.
+- [ ] **P13-04** Review every candidate match, keyword plan, user-supplied resume document, destination, document upload, and required answer before pilot submission.
 - [ ] **P13-05** Apply only within the authorized pilot scope and record actual confirmation evidence for each successful attempt.
 - [ ] **P13-06** Resolve missing questions through Space and verify appropriate reuse on subsequent applications.
 - [ ] **P13-07** Inspect any uncertain result and reconcile it before considering further action for that job.
@@ -556,7 +547,7 @@ Owner: Builder + Core; User configures standing policy. Deliverable: reliable sc
 - [ ] **P14-01** Choose and configure a durable scheduler for the deployment; document laptop-off behavior or always-on hosting requirements.
 - [ ] **P14-02** Set the user-approved time/timezone and define missed-run, daylight-saving, and catch-up behavior.
 - [ ] **P14-03** Use durable run locks/leases to prevent overlapping schedules and recover abandoned runs.
-- [ ] **P14-04** Create daily queues for discovery, matching, tailoring, questions, prepared packages, submissions, and reconciliation.
+- [ ] **P14-04** Create daily queues for discovery, matching, keyword planning, questions, prepared packages, submissions, and reconciliation.
 - [ ] **P14-05** Prioritize suitable fresh jobs and known deadlines while preserving user-defined preferences and hard constraints.
 - [ ] **P14-06** Apply per-day application caps, per-run/runtime budgets, per-source rate limits, and model spending limits across workers.
 - [ ] **P14-07** Persist and resume unanswered applications without holding workers open or blocking unrelated jobs.
@@ -599,7 +590,7 @@ Exit check: each expansion has its own evidence and maintainable support boundar
 | --- | --- | --- |
 | User -> Space | Confirmed facts, evidence references, preferences, reuse scope | Required facts conflict or lack confirmation |
 | B -> A | Job snapshot/hash, match evidence, policy/profile versions, gaps | Hard filter fails, critical requirement unknown, or duplicate unresolved |
-| A -> C | Resume hash/artifact ID, evidence map, change report, validation | Unsupported claim, invalid export, stale source version |
+| A -> C | Job ID, keyword-plan artifact ID/hash, priority summary, warnings | Missing keyword plan, invalid schema, stale job description version |
 | C -> Review | Destination, exact document, field answers/provenance, unresolved items | Form unsupported or required answers unresolved |
 | Review/policy -> Gateway | Package identity and applicable user authorization | Approval stale/revoked, package changed, source capability absent |
 | Gateway -> History | Attempt ID, receipt/evidence, result status | Result ambiguous; retain `submission_unknown` |
@@ -612,7 +603,7 @@ The implementation is ready for daily use only when the appropriate Phase 14 exi
 | --- | --- | --- |
 | M1: Agent foundation | 00–04 | Each agent's files, models, skills, tool permissions, and Space profile |
 | M2: Agent B discovery | 05–05E | Run Agent B and inspect discovered job links, descriptions, shortlist reasoning, source limits, and handoff entries |
-| M3: Resume value | 06 | Truthful tailored resume, export, evidence map, and change report |
+| M3: Keyword plan value | 06 | Ranked job-specific keyword plan linked to the job record |
 | M4: Complete draft workflow | 07–09 | Form preview, reusable answers, missing questions, and resumable review |
 | M5: Submission readiness | 10–12 | Supported live adapter, guarded submission, and evaluation report |
 | M6: Real pilot | 13 | Actual confirmation evidence, correction rate, and costs |

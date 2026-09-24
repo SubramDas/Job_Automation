@@ -40,12 +40,12 @@ user explicitly narrows the product further:
 | P00-03 | Hard filters and flexible preferences | Complete | Criteria are flexible except onsite/hybrid roles must be in Bengaluru or Hyderabad; remote roles may be elsewhere |
 | P00-04 | Exclusions and reapplication policy | Complete | No current company, agency, role, industry, or arrangement exclusions; every possible reapplication requires manual user review |
 | P00-05 | Compensation meaning and disclosure policy | Complete | Compare annual total compensation; a posted range's minimum must exceed current CTC; no stated compensation means no compensation filter; current CTC may be disclosed when required |
-| P00-06 | Candidate inputs to collect in private storage | Complete for Phase 00 | LaTeX resume plus supporting links/evidence/history are available and will be inventoried in private storage later |
+| P00-06 | Candidate inputs to collect in private storage | Complete for Phase 00 | Resume file plus supporting links/evidence/history are available; Agent A will not touch resume sources |
 | P00-07 | Eligibility, notice, and availability renewal rules | Complete | User maintains confirmed facts in the database; no periodic reconfirmation; conflicts and employer-specific declarations still require review |
 | P00-08 | Initial source candidates and manual-import fallback | Complete | Manual description/URL import is the universal MVP source; LinkedIn, Naukri, employer sites, ATS postings, and other job sites are candidates, with automated capabilities unverified |
 | P00-09 | Local/hosted operation, review interface, notifications, timezone | Complete for MVP | Local laptop, CLI, Asia/Kolkata; no external notification channel selected yet |
 | P00-10 | Cost/runtime budgets, processing caps, submission caps, schedule | Complete for MVP | User starts each run manually; no initial automatic schedule, cost/runtime budget, or processing/preparation/submission caps; these are required before unattended or live operation |
-| P00-11 | Draft mode and future standing-permission fields | Complete | User reviews every job, resume, answer set, gap, and destination; live and unattended submission disabled initially; standing permission is a later decision |
+| P00-11 | Draft mode and future standing-permission fields | Complete | User reviews every job, keyword plan, resume document, answer set, gap, and destination; live and unattended submission disabled initially; standing permission is a later decision |
 | P00-12 | Provider data-sharing and retention constraints | Complete for synthetic scope | Provider review deferred; only synthetic data may be processed until provider, sharing, and retention constraints are explicitly approved |
 | P00-13 | Evaluation goals and release thresholds | Complete | User approved the initial quality goals listed below |
 | P00-14 | Labeling process for 20–30 initial jobs | Complete | User will label each job yes/maybe/no with a reason; preserve a held-out subset for evaluation |
@@ -54,7 +54,7 @@ user explicitly narrows the product further:
 
 - One local-first modular application for the MVP, with three logical runtime roles inside a
   single process where practical.
-- Agent A handles evidence-backed resume tailoring; Agent B handles job import, extraction,
+- Agent A handles job-description keyword planning; Agent B handles job import, extraction,
   and matching; Agent C handles draft form preparation and later guarded submission.
 - Deterministic services own schemas, state transitions, filtering, authorization,
   deduplication, validation, budgets, and audit history.
@@ -116,8 +116,7 @@ must preserve the role family so later narrowing can be based on explicit user f
 
 ## Candidate-input readiness and freshness
 
-- A LaTeX resume source is available. Its contents will be supplied later, after provider and
-  personal-data handling are approved.
+- A resume document is available for the user to manage manually. Agent A will not touch resume sources.
 - Supporting links, certificates, project/work evidence, achievement information, work
   samples, and prior-application records are available. Their exact inventory and contents
   will be collected in private storage later.
@@ -131,7 +130,7 @@ must preserve the role family so later narrowing can be based on explicit user f
 ## Review and calibration policy
 
 - Every initial application package requires user review of the job, match explanation,
-  tailored resume, answer set, gaps/warnings, and application destination.
+  keyword plan, user-supplied resume document, answer set, gaps/warnings, and application destination.
 - Initial live and unattended submission are disabled.
 - The user will label approximately 20–30 jobs as `yes`, `maybe`, or `no` and give a short
   reason. The implementation must keep part of this set out of prompt/rule tuning and use it

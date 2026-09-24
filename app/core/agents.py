@@ -17,20 +17,16 @@ AGENT_IDS: tuple[str, ...] = (
 )
 
 REQUIRED_SKILLS: dict[str, tuple[str, ...]] = {
-    "agent_a_resume": ("resume-evidence", "resume-tailoring", "resume-export-review"),
+    "agent_a_resume": ("keyword-evidence", "keyword-planning", "keyword-plan-review"),
     "agent_b_discovery": ("job-discovery", "job-extraction", "job-matching"),
     "agent_c_application": ("form-preparation", "answer-resolution", "submission-reconciliation"),
 }
 
 ALLOWED_TOOLS: dict[str, tuple[str, ...]] = {
     "agent_a_resume": (
-        "space.get_career_evidence",
         "jobs.get_job",
-        "documents.extract_resume",
-        "documents.render_resume",
-        "documents.extract_text",
-        "documents.render_preview",
-        "documents.get_artifact",
+        "jobs.create_keyword_plan",
+        "jobs.save_keyword_plan",
         "review.create_question",
         "review.get_question_status",
         "workflow.save_stage_result",

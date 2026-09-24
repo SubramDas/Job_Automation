@@ -124,6 +124,9 @@ class ModelRouter:
 
     def _estimate_cost(self, model: str, tokens: int) -> float:
         synthetic_prices = {
+            "gpt-5.5": 0.0000005,
+            "gpt-5.6-terra": 0.000001,
+            "gpt-5.6-luna": 0.00000025,
             "gpt-5.4": 0.000002,
             "gpt-5.4-mini": 0.0000008,
             "gpt-5.4-nano": 0.0000002,

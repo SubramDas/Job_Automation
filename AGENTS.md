@@ -15,7 +15,7 @@ Replace repetitive manual job searching and form completion with a precise, user
 1. Accept the candidate’s master resume, factual career evidence, and job preferences.
 2. Discover and evaluate suitable opportunities.
 3. Extract and preserve the job description and application destination.
-4. Tailor a professional, concise, truthful resume to the specific role.
+4. Produce a ranked job-specific keyword plan for manual resume editing.
 5. Prepare the application using approved personal information.
 6. Ask for missing or ambiguous details and store reusable answers in Space.
 7. Submit through supported channels within the user’s current authorization.
@@ -25,13 +25,13 @@ Precision, factual integrity, and adherence to user preferences take priority ov
 
 ## Agent responsibilities
 
-### Agent A: resume specialist
+### Agent A: keyword specialist
 
-- Own resume ingestion, evidence mapping, relevant terminology, rewriting, and export.
-- Maintain an immutable original and a user-approved canonical fact set.
-- Generate each variant from canonical evidence and a versioned job description.
-- Return document artifacts, factual provenance, requirement coverage, gaps, and a change report.
-- Improve emphasis and wording without inventing or inflating qualifications.
+- Own Codex + MCP based keyword extraction from versioned job descriptions.
+- Rank terms as high, medium, or low priority and mark them mandatory, recommended, or optional.
+- Group keywords by skills, tools, platforms, responsibilities, domain terms, seniority signals, and ATS-relevant synonyms.
+- Persist the keyword plan as an artifact and link it to the job record.
+- Do not touch resume files; resume changes are manual.
 
 ### Agent B: job discovery and matching specialist
 
@@ -68,13 +68,12 @@ These are product roles, not a requirement to launch multiple development agents
 7. **Verified completion:** Mark an application submitted only with reliable confirmation evidence.
 8. **Recoverable operation:** Persist state before waiting or performing external actions. Support restart, cancellation, limits, and pause controls.
 
-## Resume and matching requirements
+## Resume, keyword, and matching requirements
 
+- Agent A provides ranked keywords for manual resume editing; it must not modify resume files.
 - Prioritize relevant achievements and accurate role terminology; avoid keyword stuffing, hidden text, and copied requirements without evidence.
 - Preserve factual consistency across resume, profile, cover letter if requested, and screening answers.
-- Keep requirement evidence and skill gaps visible to the user.
-- Use readable, text-based exports with consistent headings and predictable reading order.
-- Check extracted text and rendered appearance before release; respect destination file constraints.
+- Keep requirement evidence, keyword priorities, and skill gaps visible to the user.
 - Treat internal scores as explainable heuristics. Report missing evidence and coverage alongside scores.
 - Improve recommendations using explicit user feedback. Do not autonomously broaden acceptable roles or exclusions based on inferred taste.
 
@@ -103,7 +102,7 @@ Do not infer sensitive demographics. Handle consent, signatures, attestations, a
 
 Normal path:
 
-`discovered -> extracted -> evaluated -> shortlisted -> tailoring -> validated -> preparing -> ready -> submitting -> submitted`
+`discovered -> extracted -> evaluated -> shortlisted -> keyword_planning -> validated -> preparing -> ready -> submitting -> submitted`
 
 Support alternate states for preference rejection, missing user input, review, manual handoff, expiration, retryable/permanent failure, and unknown submission outcome. State changes need an audit event and relevant input versions.
 
@@ -157,9 +156,9 @@ Avoid speculative infrastructure. Do not build dashboards, multiple services, or
 
 A feature is complete when its authorized behavior works, relevant checks pass, limitations are documented, and no unverified external action is reported as successful.
 
-Required coverage across the project includes truthful tailoring, hard-filter enforcement, unknown-field handling, scoped answer reuse, stale-answer reconfirmation, duplicate detection, conditional forms, correct document uploads, approval invalidation, submission ambiguity, restart recovery, source failure isolation, dry-run isolation, and prompt-injection resistance.
+Required coverage across the project includes safe keyword planning, hard-filter enforcement, unknown-field handling, scoped answer reuse, stale-answer reconfirmation, duplicate detection, conditional forms, correct document uploads, approval invalidation, submission ambiguity, restart recovery, source failure isolation, dry-run isolation, and prompt-injection resistance.
 
-Resume exports require both text extraction and visual inspection. Browser adapters need synthetic fixture checks before a controlled real pilot. Every confirmed submission needs evidence. Quality reports must distinguish measured results from goals; fabricated claims and duplicate submissions have a target of zero.
+User-supplied resume uploads require normal file checks before use; Agent A keyword plans require schema and policy validation. Browser adapters need synthetic fixture checks before a controlled real pilot. Every confirmed submission needs evidence. Quality reports must distinguish measured results from goals; fabricated claims and duplicate submissions have a target of zero.
 
 ## Communication and change discipline
 
@@ -169,4 +168,4 @@ Resume exports require both text extraction and visual inspection. Browser adapt
 - Batch related questions; do not repeatedly ask for valid cached answers.
 - Preserve user edits and unrelated files.
 - Keep this file and the implementation plan consistent with approved scope changes.
-- Never claim that a generated resume is guaranteed to rank above every other applicant.
+- Never claim that a resume or keyword plan is guaranteed to rank above every other applicant.

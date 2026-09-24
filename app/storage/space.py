@@ -307,6 +307,22 @@ class SpaceStore:
                   created_at TEXT NOT NULL
                 );
 
+                CREATE TABLE IF NOT EXISTS job_keyword_plans (
+                  id TEXT PRIMARY KEY,
+                  job_id TEXT NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
+                  artifact_id TEXT NOT NULL,
+                  artifact_sha256 TEXT NOT NULL,
+                  description_hash TEXT NOT NULL,
+                  model_json TEXT NOT NULL,
+                  priority_counts_json TEXT NOT NULL,
+                  mandate_counts_json TEXT NOT NULL,
+                  warnings_json TEXT NOT NULL,
+                  validation_json TEXT NOT NULL,
+                  created_at TEXT NOT NULL
+                );
+                CREATE INDEX IF NOT EXISTS idx_job_keyword_plans_job
+                  ON job_keyword_plans(job_id);
+
                 CREATE TABLE IF NOT EXISTS agent_b_review_actions (
                   id TEXT PRIMARY KEY,
                   run_id TEXT,
