@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from app.profile.answer_memory import AnswerMemoryService, AnswerResolution
 from app.storage.space import SpaceError, SpaceStore, new_id, stable_json, utc_now
 
 USER_ACTORS = {"user"}
@@ -28,6 +29,7 @@ class OnboardingService:
 
     def __init__(self, store: SpaceStore) -> None:
         self.store = store
+        self.answer_memory = AnswerMemoryService(store)
 
     def propose_fact(
         self,
@@ -282,21 +284,35 @@ class OnboardingService:
         return answer_id
 
     def resolve_exact_answer(self, *, semantic_key: str, scope: dict[str, Any]) -> str | None:
-        encoded_scope = stable_json(scope)
-        with self.store.connect() as db:
-            row = db.execute(
-                """
-                SELECT id FROM reusable_answers
-                WHERE semantic_key = ?
-                  AND scope_json = ?
-                  AND confirmation_state = 'confirmed'
-                  AND (expires_at IS NULL OR expires_at > ?)
-                ORDER BY version DESC, created_at DESC
-                LIMIT 1
-                """,
-                (semantic_key, encoded_scope, utc_now()),
-            ).fetchone()
-        return None if row is None else str(row["id"])
+        result = self.answer_memory.resolve_answer(semantic_key=semantic_key, context=scope)
+        return result.answer_id if result.status == "resolved" else None
+
+    def resolve_answer(
+        self,
+        *,
+        semantic_key: str,
+        context: dict[str, Any],
+        expected_type: str | None = None,
+        unit: str | None = None,
+        application_id: str | None = None,
+        original_question: str | None = None,
+        create_question: bool = False,
+        reason: str | None = None,
+        suggested_reuse_scope: dict[str, Any] | None = None,
+        checkpoint: dict[str, Any] | None = None,
+    ) -> AnswerResolution:
+        return self.answer_memory.resolve_answer(
+            semantic_key=semantic_key,
+            context=context,
+            expected_type=expected_type,
+            unit=unit,
+            application_id=application_id,
+            original_question=original_question,
+            create_question=create_question,
+            reason=reason,
+            suggested_reuse_scope=suggested_reuse_scope,
+            checkpoint=checkpoint,
+        )
 
     def create_pending_question(
         self,
@@ -306,27 +322,78 @@ class OnboardingService:
         reason: str,
         suggested_reuse_scope: dict[str, Any] | None,
     ) -> str:
-        question_id = new_id("question")
-        now = utc_now()
-        with self.store.connect() as db:
-            db.execute(
-                """
-                INSERT INTO pending_questions
-                  (id, application_id, field_context_json, reason, suggested_reuse_scope_json,
-                   status, answer_ref, created_at, updated_at)
-                VALUES (?, ?, ?, ?, ?, 'open', NULL, ?, ?)
-                """,
-                (
-                    question_id,
-                    application_id,
-                    stable_json(field_context),
-                    reason,
-                    stable_json(suggested_reuse_scope) if suggested_reuse_scope is not None else None,
-                    now,
-                    now,
-                ),
-            )
-        return question_id
+        return self.answer_memory.create_or_get_question(
+            application_id=application_id,
+            field_context=field_context,
+            reason=reason,
+            suggested_reuse_scope=suggested_reuse_scope,
+        )
+
+    def batch_pending_questions(self, questions: list[dict[str, Any]]) -> list[str]:
+        return self.answer_memory.batch_questions(questions)
+
+    def answer_pending_question(
+        self,
+        *,
+        question_id: str,
+        typed_value: Any,
+        unit: str | None,
+        sensitivity: str,
+        reuse_permission: str,
+        scope: dict[str, Any],
+        provenance: dict[str, Any],
+        expires_at: str | None,
+        actor: str,
+    ) -> str:
+        return self.answer_memory.answer_question(
+            question_id=question_id,
+            typed_value=typed_value,
+            unit=unit,
+            sensitivity=sensitivity,
+            reuse_permission=reuse_permission,
+            scope=scope,
+            provenance=provenance,
+            expires_at=expires_at,
+            actor=actor,
+        )
+
+    def revise_reusable_answer(
+        self,
+        answer_id: str,
+        *,
+        typed_value: Any,
+        unit: str | None,
+        scope: dict[str, Any],
+        provenance: dict[str, Any],
+        expires_at: str | None,
+        actor: str,
+        reason: str,
+    ) -> str:
+        return self.answer_memory.revise_answer(
+            answer_id,
+            typed_value=typed_value,
+            unit=unit,
+            scope=scope,
+            provenance=provenance,
+            expires_at=expires_at,
+            actor=actor,
+            reason=reason,
+        )
+
+    def set_question_status(
+        self,
+        question_id: str,
+        *,
+        status: str,
+        actor: str,
+        reason: str,
+    ) -> None:
+        self.answer_memory.set_question_status(
+            question_id,
+            status=status,
+            actor=actor,
+            reason=reason,
+        )
 
     def save_checkpoint(self, *, application_id: str, stage: str, checkpoint: dict[str, Any]) -> str:
         checkpoint_id = new_id("checkpoint")

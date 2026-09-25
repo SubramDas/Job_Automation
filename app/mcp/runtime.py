@@ -10,12 +10,13 @@ import hashlib
 import json
 import time
 import zipfile
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 from xml.etree import ElementTree
 
-from app.core.agents import ALLOWED_TOOLS, AGENT_IDS, AgentPackage
+from app.core.agents import AGENT_IDS, ALLOWED_TOOLS, AgentPackage
 from app.core.config import ConfigError, _read_json
 from app.core.contracts import ERROR_CODES
 from app.discovery.manual_import import ManualJobImporter
@@ -23,7 +24,10 @@ from app.discovery.source_adapters import AdapterError, SearchQuery, build_adapt
 from app.matching.evaluator import JobMatcher
 from app.profile.onboarding import OnboardingService
 from app.storage.space import SpaceError, SpaceStore, new_id, stable_json, utc_now
-from app.tailoring.keyword_planning import KEYWORD_PLAN_CONTENT_TYPE, create_keyword_plan, save_keyword_plan
+from app.tailoring.keyword_planning import (
+    create_keyword_plan,
+    save_keyword_plan,
+)
 
 MAX_TOOL_PAYLOAD_BYTES = 64 * 1024
 MAX_TEXT_PAYLOAD_CHARS = 50_000
@@ -298,8 +302,26 @@ class Phase04Services:
         }
 
     def resolve_answer(self, context: ToolContext, args: dict[str, Any]) -> dict[str, Any]:
-        answer_id = self.onboarding.resolve_exact_answer(semantic_key=args["semantic_key"], scope=args["scope"])
-        return {"answer_id": answer_id, "status": "resolved" if answer_id else "missing"}
+        result = self.onboarding.resolve_answer(
+            semantic_key=args["semantic_key"],
+            context=args["scope"],
+            expected_type=args.get("expected_type"),
+            unit=args.get("unit"),
+            application_id=context.application_id,
+            original_question=args.get("original_question"),
+            create_question=bool(args.get("create_question", False)),
+            reason=args.get("reason"),
+            suggested_reuse_scope=args.get("suggested_reuse_scope"),
+            checkpoint=args.get("checkpoint"),
+        )
+        return {
+            "answer_id": result.answer_id,
+            "status": result.status,
+            "reason": result.reason,
+            "question_id": result.question_id,
+            "candidate_answer_ids": list(result.candidates),
+            "required_context": result.required_context,
+        }
 
     def search_sources(self, context: ToolContext, args: dict[str, Any]) -> dict[str, Any]:
         source = self._source(args["source_id"])

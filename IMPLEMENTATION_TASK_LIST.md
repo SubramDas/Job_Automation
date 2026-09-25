@@ -1,6 +1,6 @@
 # Job application pipeline: phased implementation task list
 
-Status: phased backlog. Phases 00-03 and Phase 05 are complete for the local synthetic
+Status: phased backlog. Phases 00-03, 05, 06, and 07 are complete for the local synthetic
 manual-import dry-run scope. Phase 04 has a restricted in-process foundation, while live
 providers, source automation, scheduling, and submission remain disabled.
 Prepared: 2026-09-23.
@@ -424,20 +424,20 @@ Exit check: a saved job or pasted job description produces a validated keyword-p
 
 Owner: Builder + Core, integrated with Agent C. Deliverable: context-aware memory and resumable questions.
 
-- [ ] **P07-01** Define semantic field keys and question context: employer, job, country, employment type, currency, unit, and experience definition.
-- [ ] **P07-02** Implement exact scoped answer lookup and deterministic compatibility checks before any semantic suggestion.
-- [ ] **P07-03** Implement expiration/reconfirmation rules for availability, notice period, salary, and other changeable facts.
-- [ ] **P07-04** Handle multiple current-looking answers as a conflict rather than silently picking one.
-- [ ] **P07-05** Add a question queue showing the exact question, application context, why an answer is needed, and proposed reuse scope.
-- [ ] **P07-06** Batch related questions and deduplicate genuinely equivalent pending questions while keeping employer-specific ones distinct.
-- [ ] **P07-07** Let the user answer for this application only or approve appropriate reuse; record source, time, and scope.
-- [ ] **P07-08** Implement separate handling for optional sensitive demographics, consent, attestations, signatures, and employer disclosures.
-- [ ] **P07-09** Persist resume checkpoints before waiting; allow other applications to progress.
-- [ ] **P07-10** Resume only affected applications when an answer arrives; refresh form state if it has changed.
-- [ ] **P07-11** Apply corrections to pending packages and invalidate stale validation/approval; preserve historical answer snapshots.
-- [ ] **P07-12** Provide manual-handoff, skip-job, and leave-question-pending choices without fabricating a default.
-- [ ] **P07-13** Test salary unit differences, sponsorship by country, professional versus total experience, expiry, and scope leakage.
-- [ ] **P07-14** Verify that an appropriately cached answer is reused without asking again and that a new context still triggers the necessary question.
+- [x] **P07-01** Define semantic field keys and question context: employer, job, country, employment type, currency, unit, and experience definition. Evidence: `app/profile/answer_memory.py` context requirements and Phase 07 tests.
+- [x] **P07-02** Implement exact scoped answer lookup and deterministic compatibility checks before any semantic suggestion. Evidence: `AnswerMemoryService.resolve_answer`, `OnboardingService.resolve_answer`, and enriched `space.resolve_answer` MCP output.
+- [x] **P07-03** Implement expiration/reconfirmation rules for availability, notice period, salary, and other changeable facts. Evidence: default freshness rules plus explicit `expires_at` checks in `app/profile/answer_memory.py`.
+- [x] **P07-04** Handle multiple current-looking answers as a conflict rather than silently picking one. Evidence: conflict handling in `AnswerMemoryService.resolve_answer` and `tests/test_phase07_answer_memory.py`.
+- [x] **P07-05** Add a question queue showing the exact question, application context, why an answer is needed, and proposed reuse scope. Evidence: canonical question field context and reuse scope in `create_or_get_question`.
+- [x] **P07-06** Batch related questions and deduplicate genuinely equivalent pending questions while keeping employer-specific ones distinct. Evidence: `batch_questions` and pending-question dedupe tests.
+- [x] **P07-07** Let the user answer for this application only or approve appropriate reuse; record source, time, and scope. Evidence: `answer_question` records provenance, scope, reuse permission, and answer snapshot updates.
+- [x] **P07-08** Implement separate handling for optional sensitive demographics, consent, attestations, signatures, and employer disclosures. Evidence: special review prefixes block automatic reuse.
+- [x] **P07-09** Persist resume checkpoints before waiting; allow other applications to progress. Evidence: unresolved answer flow saves application checkpoints and only marks the affected application `needs_user_input`.
+- [x] **P07-10** Resume only affected applications when an answer arrives; refresh form state if it has changed. Evidence: `answer_question` resumes the linked application and records a refresh-required audit event.
+- [x] **P07-11** Apply corrections to pending packages and invalidate stale validation/approval; preserve historical answer snapshots. Evidence: `revise_answer` supersedes the old answer and creates invalidation events for pending applications using it.
+- [x] **P07-12** Provide manual-handoff, skip-job, and leave-question-pending choices without fabricating a default. Evidence: `set_question_status` supports manual handoff, skip, and open/pending states.
+- [x] **P07-13** Test salary unit differences, sponsorship by country, professional versus total experience, expiry, and scope leakage. Evidence: `tests/test_phase07_answer_memory.py`.
+- [x] **P07-14** Verify that an appropriately cached answer is reused without asking again and that a new context still triggers the necessary question. Evidence: Phase 07 resolver tests and preserved Phase 03 exact-answer compatibility test.
 
 Exit check: one answered question can save future work when appropriate; ambiguous or stale facts do not silently enter forms.
 

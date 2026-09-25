@@ -1,9 +1,9 @@
 # Local Setup
 
-Status: Phase 03 local Space foundation. This setup validates contracts, synthetic
-configuration, agent instruction packages, and private-profile storage using synthetic data
-only. It does not connect accounts, process real resumes through providers, schedule runs,
-or submit applications.
+Status: local dry-run foundation through Phase 07. This setup validates contracts,
+synthetic configuration, agent instruction packages, private-profile storage, manual job
+import/matching, Agent A keyword planning, and reusable-answer/question handling using
+synthetic data only. It does not connect accounts, schedule runs, or submit applications.
 
 ## Requirements
 
