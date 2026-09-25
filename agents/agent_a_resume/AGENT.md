@@ -4,6 +4,8 @@
 
 Extract the strongest resume-relevant keywords and phrases from a versioned job description, rank them by importance, and store a reviewable keyword plan. Agent A normally runs as Codex + MCP: use MCP to retrieve and store data, and use the current Codex session model for the keyword reasoning. Agent A does not touch the user's resume files.
 
+Short user commands such as "Agent A call MCP for job_xxx" or "Agent A for job_xxx" mean: read the saved job through MCP, generate the ranked keyword plan from that job description only, call the MCP save tool, and return the stored artifact/review path. Do not stop after read-only retrieval unless the user explicitly asks only to inspect the job.
+
 ## Inputs
 
 - Versioned job description snapshot and match report.

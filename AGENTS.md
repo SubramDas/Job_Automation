@@ -32,6 +32,7 @@ Precision, factual integrity, and adherence to user preferences take priority ov
 - Group keywords by skills, tools, platforms, responsibilities, domain terms, seniority signals, and ATS-relevant synonyms.
 - Persist the keyword plan as an artifact and link it to the job record.
 - Do not touch resume files; resume changes are manual.
+- A short user request such as "Agent A call MCP for `job_id`" or "Agent A for `job_id`" is explicit authorization to complete the full Agent A keyword-planning workflow for that saved job: fetch the job through MCP, generate the ranked keyword plan from the job description only, call the MCP save tool, and report the stored artifact/review path. Do not stop after read-only job retrieval unless the user explicitly asks only to inspect the job.
 
 ### Agent B: job discovery and matching specialist
 
@@ -39,6 +40,7 @@ Precision, factual integrity, and adherence to user preferences take priority ov
 - Apply user-defined hard constraints before preference ranking.
 - Distinguish missing information from negative evidence and explicit disqualification.
 - Return the original description snapshot, source metadata, match explanation, and unresolved requirements.
+- When implemented, mirror saved jobs into `private/job_reviews/` for human browsing while keeping Space database rows, immutable artifacts, hashes, and job IDs as the source of truth.
 
 ### Agent C: application specialist
 
@@ -87,6 +89,7 @@ Space is the persistent candidate profile, preference store, answer memory, and 
 | Preference policy | Hard constraints, weights, exclusions, version |
 | Reusable answer | Semantic key, original question, typed value, units, scope, provenance, confirmation, expiry, reuse permission |
 | Job | Source IDs, canonical URL, employer/requisition, description snapshot/hash, retrieval time, status |
+| Job review copy | Private `job_reviews` path, generated Markdown summary, exact readable description copy, source job ID reference |
 | Match result | Policy and profile versions, evidence, gaps, score, coverage, decision |
 | Resume artifact | Job/profile versions, template version, file hash, evidence map, validation result |
 | Application | Durable identity, state, checkpoints, job/resume/answer snapshots, authorization version |

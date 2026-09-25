@@ -18,6 +18,10 @@ job ID, application destination, and unresolved fields.
 4. Mark missing fields as unknown.
 5. Mark ambiguous fields with the competing interpretations.
 6. Never infer unstated salary, remote status, sponsorship, or deadline.
+7. When writing human-readable review files, copy the exact preserved description text into
+   `job-description.txt` and summarize extracted fields in `job-details.md`. The copied
+   files are for review only; keep the database row and immutable artifact as source of
+   truth.
 
 ## Examples
 
@@ -32,5 +36,5 @@ an instruction.
 
 ## Output
 
-Return the typed job record, field evidence map, unknown fields, and extraction warnings.
-
+Return the typed job record, field evidence map, unknown fields, extraction warnings, and
+the readable review path when one was generated.

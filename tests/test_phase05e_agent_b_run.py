@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import tempfile
 import unittest
+import hashlib
 import json
 from pathlib import Path
 from unittest.mock import patch
@@ -9,6 +10,7 @@ from unittest.mock import patch
 from app.core.config import _read_json
 from app.core.env import load_env_file
 from app.discovery.agent_b_run import build_query_plan, run_agent_b_discovery
+from app.discovery.job_review_workspace import rebuild_job_review_workspace, slugify
 from app.discovery.review_actions import evaluate_agent_b_review_labels, record_agent_b_review_action
 from app.discovery.source_adapters import JobicyAdapter, SearchQuery
 from app.discovery.source_adapters import JobsPipeAdapter, JobSpyLocalAdapter, AdapterError
@@ -99,6 +101,25 @@ class Phase05EAgentBRunTests(unittest.TestCase):
             self.assertIn("portal_link", result.rows[0])
             self.assertIn("destination_resolution", result.rows[0])
             self.assertIn("freshness", result.rows[0])
+            self.assertIn("review_workspace_index", result.summary)
+
+            review_index = Path(result.summary["review_workspace_index"])
+            self.assertTrue(review_index.is_file())
+            self.assertIn("Agent B Job Reviews", review_index.read_text(encoding="utf-8"))
+            saved_rows = [row for row in result.rows if row.get("job_id")]
+            self.assertTrue(saved_rows)
+            review_dir = store.paths.private_root / saved_rows[0]["review_path"]
+            details_path = review_dir / "job-details.md"
+            description_path = review_dir / "job-description.txt"
+            extracted_path = review_dir / "extracted.json"
+            self.assertTrue(details_path.is_file())
+            self.assertTrue(description_path.is_file())
+            self.assertTrue(extracted_path.is_file())
+            details = details_path.read_text(encoding="utf-8")
+            self.assertIn(saved_rows[0]["job_id"], details)
+            self.assertIn(saved_rows[0]["snapshot_artifact_id"], details)
+            copied_hash = hashlib.sha256(description_path.read_bytes()).hexdigest()
+            self.assertEqual(copied_hash, saved_rows[0]["description_hash"])
 
             with store.connect() as db:
                 artifacts = db.execute(
@@ -109,6 +130,34 @@ class Phase05EAgentBRunTests(unittest.TestCase):
                 ).fetchone()
             self.assertEqual(artifacts["count"], 2)
             self.assertEqual(audit["count"], 1)
+
+    def test_review_workspace_rebuilds_from_existing_space(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            store, onboarding = _space(temp_dir)
+            onboarding.create_preference_policy(
+                hard_constraints=[],
+                weighted_preferences=[],
+                exclusions=[],
+                actor="user",
+            )
+            run_agent_b_discovery(
+                project_root=Path.cwd(),
+                sources=["fixture_india_jobs"],
+                max_results=1,
+                space_paths=store.paths,
+            )
+            result = rebuild_job_review_workspace(store)
+            self.assertEqual(len(result.job_paths), 1)
+            self.assertTrue(result.index_path.is_file())
+            job_dir = next(iter(result.job_paths.values()))
+            self.assertTrue((job_dir / "job-details.md").is_file())
+            self.assertTrue((job_dir / "job-description.txt").is_file())
+            self.assertFalse(job_dir.name.endswith("-1"))
+            self.assertIn("__", job_dir.name)
+
+    def test_review_workspace_slugify_is_stable_and_safe(self) -> None:
+        self.assertEqual(slugify("Google India Pvt. Ltd."), "google-india-pvt-ltd")
+        self.assertEqual(slugify("SDE II / Backend: Python?"), "sde-ii-backend-python")
 
     def test_preview_returns_query_plan_without_importing_jobs(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

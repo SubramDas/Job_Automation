@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from app.core.env import load_env_file
+from app.discovery.job_review_workspace import write_agent_b_review_workspace
 from app.mcp.runtime import ToolContext, build_phase04_registry
 from app.storage.space import SpacePaths, SpaceStore, new_id, stable_json, utc_now
 
@@ -90,6 +91,8 @@ def run_agent_b_discovery(
                 rows.append(row)
 
         grouped = _group_rows(rows, source_errors)
+        review_workspace = write_agent_b_review_workspace(store, rows=rows, run_id=run_id, summary=grouped)
+        grouped["review_workspace_index"] = str(review_workspace.index_path)
         output_payload = {
             "run_id": run_id,
             "created_at": utc_now(),
@@ -422,6 +425,8 @@ def format_cli_table(result: AgentBRunResult) -> str:
         lines.append(f"  json_artifact: {result.output_artifact_id}")
     if result.markdown_artifact_id:
         lines.append(f"  markdown_artifact: {result.markdown_artifact_id}")
+    if result.summary.get("review_workspace_index"):
+        lines.append(f"  review_workspace_index: {result.summary['review_workspace_index']}")
     if result.rows:
         lines.extend(["", "Jobs:"])
         states = sorted({row["state"] for row in result.rows})

@@ -12,7 +12,9 @@ manual job description and source URL.
    work-mode rules.
 3. Use only sources whose capability flags permit the requested operation.
 4. Preserve source URL, source job ID when available, retrieval time, and raw description.
-5. Route unsupported sources to manual import or manual handoff.
+5. Store the durable job record through Space/artifacts, then mirror saved jobs into the
+   private review workspace when that feature is enabled.
+6. Route unsupported sources to manual import or manual handoff.
 
 ## Examples
 
@@ -27,5 +29,6 @@ location policy authoritative.
 
 ## Output
 
-Return discovered links or manual-import records with provenance and capability status.
-
+Return discovered links or manual-import records with provenance and capability status. For
+saved jobs, include the `job_id`, snapshot artifact reference, and readable review path
+when available.

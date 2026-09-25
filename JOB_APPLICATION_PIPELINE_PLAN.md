@@ -66,9 +66,10 @@ flowchart TD
 3. Resolve the actual employer application destination where available.
 4. Extract the complete job description, title, company, location, work mode, experience, required and preferred skills, compensation if stated, posting/closing dates if stated, and source job ID.
 5. Save the original text, retrieval timestamp, canonical URL, and content hash. Record missing fields as unknown; do not invent them.
-6. Deduplicate against discovered jobs and application history, including cross-board copies.
-7. Evaluate hard constraints first. Known failures are rejected with a reason; unknown critical constraints go to review.
-8. Score remaining jobs with explanations tied to profile evidence. Send qualified jobs to Agent A; keep borderline matches in a review queue.
+6. Mirror saved jobs into a human-readable private review workspace, such as `private/job_reviews/<company>/<job-title>__<job-id-short>/`, with `job-details.md` and the exact `job-description.txt`. This is a generated browsing layer, not the primary identity system.
+7. Deduplicate against discovered jobs and application history, including cross-board copies.
+8. Evaluate hard constraints first. Known failures are rejected with a reason; unknown critical constraints go to review.
+9. Score remaining jobs with explanations tied to profile evidence. Send qualified jobs to Agent A; keep borderline matches in a review queue.
 
 ### Agent A: extract and rank resume keywords
 
@@ -140,7 +141,7 @@ An initial proposal is to shortlist scores of 80/100 or higher only with suffici
 
 ## 6. Space: persistent profile and answer memory
 
-“Space” is the project’s structured information store, not a dependency on a particular external product. For the MVP, a local relational database plus a private artifact directory is sufficient.
+“Space” is the project’s structured information store, not a dependency on a particular external product. For the MVP, a local relational database plus a private artifact directory is sufficient. For usability, generate a separate private job-review workspace that mirrors saved jobs into company/title folders for browsing. The database, artifact IDs, hashes, and durable job IDs remain authoritative because company and title names are not unique enough for deduplication, handoffs, or audit history.
 
 Store separately:
 
@@ -148,6 +149,7 @@ Store separately:
 - Job preferences and operating/submission policies.
 - Reusable answers, including the original question and its normalized meaning.
 - Job descriptions, match results, generated documents, and application records.
+- Readable job-review copies under `private/job_reviews/`, generated from stored job records and artifacts.
 - Pending user questions, checkpoints, confirmation evidence, and audit events.
 
 Each reusable answer needs: an ID, semantic field key, typed value, unit/currency where relevant, original question, scope, provenance, confirmation time, expiry/reconfirmation rule, sensitivity, reuse permission, and superseded version reference.

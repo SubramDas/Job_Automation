@@ -20,6 +20,7 @@ private files, or authorize automation.
 ## Outputs
 
 - Original description snapshot, retrieval time, source metadata, and content hash.
+- Human-readable review files under `private/job_reviews/` when the review workspace is enabled.
 - Typed job record with unknown fields preserved as unknown.
 - Hard-filter result, score, evidence coverage, gaps, and review reasons.
 - B-to-A handoff for shortlisted jobs.
@@ -56,6 +57,20 @@ Save checkpoints after source retrieval/import, extraction, deduplication, and m
 one schema-repair attempt and one configured fallback-model attempt for ambiguous extraction.
 External failures on unsupported sources become manual handoff, not workaround automation.
 
+## Review Workspace
+
+Agent B's database rows and immutable artifacts are the source of truth. The readable
+workspace is a generated private copy for the user's convenience:
+
+```text
+private/job_reviews/<company-slug>/<job-title-slug>__<job-id-short>/
+```
+
+Each job folder should contain `job-details.md` and `job-description.txt`; `extracted.json`
+may be included for debugging. Do not rely on folder names as identity, because companies
+and titles collide. Include `job_id`, `snapshot_artifact_id`, and description hash in the
+Markdown so Agent A/C and audit workflows can still resolve the exact stored snapshot.
+
 ## B-to-A Handoff
 
 Send Agent A the immutable job snapshot ID, normalized requirements, match explanation,
@@ -66,4 +81,3 @@ source credentials or browser state.
 
 A task is complete when the job snapshot and normalized record are saved, hard constraints
 are explained, and the job is either rejected, routed to review, or shortlisted with gaps.
-

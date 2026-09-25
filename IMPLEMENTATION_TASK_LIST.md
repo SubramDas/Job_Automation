@@ -160,7 +160,8 @@ MCP implementation must distinguish local transport through an SDK/client from p
 | 04 | Restricted MCP services and model runtime | 02, 03 |
 | 05 | Agent B manual import and matching | 04 |
 | 05E | Agent B portal discovery run from resume/Space/preferences | 05; source feasibility updates |
-| 06 | Agent A job-description keyword planning | 05E |
+| 05F | Human-readable Agent B job review workspace | 05E |
+| 06 | Agent A job-description keyword planning | 05E; benefits from 05F |
 | 07 | Answer memory and question workflow | 03, 04; can proceed alongside 05–06 |
 | 08 | Agent C synthetic-form draft preparation | 06, 07 |
 | 09 | Complete draft workflow and review interface | 05E–08 |
@@ -368,9 +369,39 @@ reviewable list of discovered job links and descriptions where permitted, with c
 manual-handoff entries where descriptions cannot be retrieved. Unsupported or restricted
 portals remain useful without unsafe automation.
 
+## Phase 05F — Human-readable Agent B job review workspace
+
+Owner: Builder, Agent B + Storage; User reviews folder layout and resulting files before
+implementation. Deliverable: every saved Agent B job remains stored in Space as the source
+of truth, and is also mirrored into a simple `private/job_reviews/` folder tree that the
+user can browse without opening opaque artifact IDs.
+
+This phase exists because the immutable artifact store is correct for auditability but
+awkward for human review. The readable workspace is a generated review layer, not the
+primary identity system. Do not replace durable job IDs, canonical URLs, description hashes,
+duplicate signals, or artifact snapshots with company/title folder names; folder names are
+labels and can collide or change.
+
+- [x] **P05F-01** Define the readable workspace root as `private/job_reviews/`, ignored by Git and separate from `private/artifacts/`. Evidence: storage docs and existing `private/` ignore rule.
+- [x] **P05F-02** Define deterministic folder naming: `private/job_reviews/<company-slug>/<job-title-slug>__<job-id-short>/` by default. Use sanitized ASCII slugs, stable lower-case names, length limits, and the short job ID suffix to avoid collisions. Evidence: `app/discovery/job_review_workspace.py` and slug tests.
+- [x] **P05F-03** For duplicate titles at the same company, avoid fragile `-1`, `-2` numbering as the durable identity. Human labels may include an ordinal for readability, but the path must retain a job ID suffix so reruns do not overwrite or reshuffle existing jobs. Evidence: review workspace tests assert ID-suffixed paths rather than ordinal-only paths.
+- [x] **P05F-04** Generate a per-job `job-details.md` that includes title, company, job ID, source, portal link, canonical job URL, application destination, retrieved time, match state, score, top reasons, warnings, unknown fields, duplicate signals, freshness, extraction summary, and links to the exact description file. Evidence: `job_details_markdown` and Phase 05E tests.
+- [x] **P05F-05** Generate a per-job `job-description.txt` containing the exact preserved description text used for extraction and matching. This file is a readable copy; the immutable source remains the artifact referenced by `snapshot_artifact_id`. Evidence: Phase 05E test verifies the copied text hash matches the stored description hash.
+- [x] **P05F-06** Optionally generate `extracted.json` for debugging/review with the extracted record, evidence spans, and match explanation. Keep it private and do not include secrets or resume text. Evidence: `extracted.json` is generated under ignored `private/job_reviews/` from stored job/extraction/match rows.
+- [x] **P05F-07** Generate or refresh `private/job_reviews/index.md` after each Agent B run. Group jobs by `shortlisted`, `needs_review`, `rejected_by_preferences`, `expired`, `manual_handoff`, and duplicate/held where available; include company, title, score, source, application link, and relative path. Evidence: `write_index` and Phase 05E tests.
+- [x] **P05F-08** Decide update semantics: regenerated files may update the readable view for the same job ID, but must not mutate immutable artifacts or historical match records. If the job description changes, create a new artifact/versioned job snapshot as the current storage rules require, then refresh the readable copy. Evidence: workspace writer updates only review files and reads immutable artifacts/database rows.
+- [x] **P05F-09** Add a CLI option or default behavior for Agent B to write the readable review workspace after discovery, plus a repair command to rebuild `private/job_reviews/` from the Space database/artifacts. Evidence: Agent B calls `write_agent_b_review_workspace`; `python3 -m app.discovery.job_review_workspace` rebuilds from Space.
+- [x] **P05F-10** Keep cleanup conservative: do not delete database rows, immutable artifacts, or keyword-plan artifacts when regenerating readable review files. If a review folder no longer maps to a current job, move it under a private archive/quarantine path or report it for manual cleanup. Evidence: no delete/archive operation is performed by the writer or rebuild command.
+- [x] **P05F-11** Review existing folders before any removal. Private runtime outputs such as `private/artifacts`, `private/db`, `private/logs`, and cloned external tool dependencies may be large or ugly, but are not obsolete merely because the readable workspace exists. Evidence: implementation kept existing backing store and external tool folders intact.
+- [x] **P05F-12** Update README and Agent B instructions so the user's normal review path is `private/job_reviews/index.md`, while Agent A/C and audits continue to use `job_id`, `snapshot_artifact_id`, hashes, and database records. Evidence: `README_SETUP.md`, Agent B docs, storage decision, and runbook updated.
+
+Exit check: after running Agent B, the user can open `private/job_reviews/index.md` and
+then browse company/job folders containing readable job details and the exact job
+description, without needing to manually inspect `private/artifacts/`.
+
 ## Phase 06 — Build Agent A: job-description keyword planning
 
-Owner: Builder, Agent A + validation service. Deliverable: Codex + MCP generated, ranked keyword plans linked to jobs for manual resume editing.
+Owner: Builder, Agent A + validation service. Deliverable: Codex + MCP generated, ranked keyword plans linked to jobs for manual resume editing. Depends on Phase 05E; Phase 05F improves review usability but does not change Agent A's source-of-truth inputs.
 
 - [x] **P06-01** Remove Agent A's resume-file editing and approval responsibilities from code paths and interfaces. Evidence: Agent A now uses `jobs.get_job` plus `jobs.save_keyword_plan` for the Codex + MCP workflow; obsolete `app/tailoring/resume_tailoring.py` was removed.
 - [x] **P06-02** Define a structured keyword-plan schema with job ID, description hash, model/prompt version, categories, exact terms, synonyms, priority, mandate level, rationale, warnings, and timestamps. Evidence: `app/tailoring/keyword_planning.py` plan payload and `job_keyword_plans` table.
@@ -602,7 +633,7 @@ The implementation is ready for daily use only when the appropriate Phase 14 exi
 | Milestone | Included phases | What you can inspect |
 | --- | --- | --- |
 | M1: Agent foundation | 00–04 | Each agent's files, models, skills, tool permissions, and Space profile |
-| M2: Agent B discovery | 05–05E | Run Agent B and inspect discovered job links, descriptions, shortlist reasoning, source limits, and handoff entries |
+| M2: Agent B discovery | 05–05F | Run Agent B and inspect discovered job links, descriptions, shortlist reasoning, source limits, handoff entries, and readable `private/job_reviews/` files |
 | M3: Keyword plan value | 06 | Ranked job-specific keyword plan linked to the job record |
 | M4: Complete draft workflow | 07–09 | Form preview, reusable answers, missing questions, and resumable review |
 | M5: Submission readiness | 10–12 | Supported live adapter, guarded submission, and evaluation report |

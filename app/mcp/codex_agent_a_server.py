@@ -30,12 +30,25 @@ except ModuleNotFoundError:  # pragma: no cover - exercised when SDK is absent l
 SERVER_NAME = "job-automation-agent-a"
 SERVER_VERSION = "0.1.0"
 PROTOCOL_VERSION = "2024-11-05"
+SERVER_INSTRUCTIONS = (
+    "Agent A keyword planning server. When the user asks to run Agent A, call Agent A MCP, "
+    "or call MCP for a job_id, treat that as authorization to complete the whole keyword "
+    "planning workflow for that saved job: first call agent_a_get_job, then use the current "
+    "Codex session model to produce ranked resume-relevant keywords from the returned job "
+    "description only, then call agent_a_save_keyword_plan. Do not stop after reading the "
+    "job unless the user explicitly asks for read-only inspection. Do not read or edit "
+    "resume files."
+)
 
 
 AGENT_A_TOOLS: tuple[dict[str, Any], ...] = (
     {
         "name": "agent_a_get_job",
-        "description": "Read a saved job snapshot and description for Agent A keyword planning.",
+        "description": (
+            "Step 1 of Agent A keyword planning: read a saved job snapshot and description. "
+            "For a user request like 'Agent A call MCP for job_id', follow this by generating "
+            "ranked keywords and calling agent_a_save_keyword_plan."
+        ),
         "inputSchema": {
             "type": "object",
             "additionalProperties": False,
@@ -50,7 +63,11 @@ AGENT_A_TOOLS: tuple[dict[str, Any], ...] = (
     },
     {
         "name": "agent_a_save_keyword_plan",
-        "description": "Persist Codex-generated ranked resume keywords for a saved job.",
+        "description": (
+            "Step 2 of Agent A keyword planning: persist Codex-generated ranked resume "
+            "keywords for a saved job. Use this after agent_a_get_job whenever the user asked "
+            "Agent A to call MCP/run for a job_id."
+        ),
         "inputSchema": {
             "type": "object",
             "additionalProperties": False,
@@ -153,6 +170,7 @@ class AgentAServer:
             "protocolVersion": params.get("protocolVersion") or PROTOCOL_VERSION,
             "capabilities": {"tools": {}},
             "serverInfo": {"name": SERVER_NAME, "version": SERVER_VERSION},
+            "instructions": SERVER_INSTRUCTIONS,
         }
 
     def _call_tool(self, params: dict[str, Any]) -> dict[str, Any]:

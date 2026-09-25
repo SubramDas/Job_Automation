@@ -25,7 +25,7 @@ directories and synthetic DOCX/PDF fixtures.
 
 Phase 05E adds a safe local discovery run against fixture portals. It uses MCP tool calls
 inside the app, writes private run reports under `private/artifacts`, and does not perform
-live network discovery or job submission.
+job submission.
 
 Preview the generated source queries:
 
@@ -58,8 +58,38 @@ Run JobsPipe after setting `JOBSPIPE_API_KEY` in `.env`:
 python3 -m app.discovery.agent_b_run --sources jobspipe_candidate --max-results 10
 ```
 
+When using the Codex-facing Agent B MCP server, you do not need to name individual live
+sources. Ask Agent B to fetch jobs from the internet; omitted `sources` or `sources:
+["auto"]` selects every configured `read_only_enabled` source from `config/sources.json`
+or `config/sources.example.json`. Local sources such as JobSpy are auto-selected only when
+their health endpoint is already running; fixtures and manual-only sources stay explicit.
+
+For a job link where direct retrieval is unsupported or not allowed, paste the full job
+description/details text with the link and ask Agent B to import it. The Codex-facing MCP
+tool `agent_b_import_job_text` saves the exact pasted text, extracts fields, evaluates the
+match, and refreshes `private/job_reviews/` without scraping the linked site.
+
 Use `--json` for machine-readable CLI output. The detailed JSON and Markdown run reports are
 stored as private artifacts and referenced by opaque artifact IDs in the command output.
+
+Agent B also generates a readable review workspace under `private/job_reviews/`. The
+intended browsing path is:
+
+```text
+private/job_reviews/index.md
+private/job_reviews/<company-slug>/<job-title-slug>__<job-id-short>/job-details.md
+private/job_reviews/<company-slug>/<job-title-slug>__<job-id-short>/job-description.txt
+```
+
+This folder is for human review. The SQLite database, immutable artifacts, description
+hashes, and `job_id` values remain the source of truth for duplicate detection, Agent A
+handoff, audit history, and future application work.
+
+Rebuild the readable review workspace from already saved Space jobs:
+
+```bash
+python3 -m app.discovery.job_review_workspace
+```
 
 ## Agent A keyword planning
 
@@ -75,6 +105,16 @@ Run Agent A keyword planning for job_id job_xxx. Read the job through MCP, extra
 resume-relevant keywords, rank them high/medium/low, mark mandatory/recommended/optional,
 store the keyword plan artifact, and show me the summary.
 ```
+
+Short form:
+
+```text
+Agent A call MCP for job_xxx
+```
+
+That short form is treated as permission to read the saved job, generate the ranked
+keyword plan, call the MCP save tool, and create/update the readable
+`private/job_reviews/.../keywords.md` mirror.
 
 The MCP tool sequence is:
 
@@ -219,3 +259,8 @@ ruff format .
 Installing dependencies does not enable live submissions. Live discovery, account login,
 uploads, form submission, scheduling, and provider use remain later-phase work requiring
 separate approval.
+
+ <!-- Title: Embedded Firmware Engineer
+  Company: Schneider Electric
+  Link: https://careers.se.com/jobs/135889...
+  JD: -->

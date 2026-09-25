@@ -22,6 +22,38 @@ Status: Phase 05E local/fixture guidance. Live source enablement still requires 
    description retrieval is unavailable.
 8. Add regression tests for search, fetch, dedupe, source failure isolation, prompt
    injection in snippets/descriptions, and CLI output.
+9. Ensure saved jobs can be mirrored into `private/job_reviews/` after ingestion. The
+   readable review files must never replace the database/artifact source of truth.
+
+## Human-Readable Review Output
+
+Agent B users should not need to browse opaque `private/artifacts/artifact_*` and
+`private/artifacts/jobdesc_*` directories during normal review. After discovery, generate
+or refresh a private review workspace:
+
+```text
+private/job_reviews/
+  index.md
+  <company-slug>/
+    <job-title-slug>__<job-id-short>/
+      job-details.md
+      job-description.txt
+      extracted.json
+```
+
+Use sanitized, stable slugs for company and title. Keep a short job-ID suffix in each job
+folder even when adding a human-friendly ordinal such as `-2`; same-title roles, reposts,
+different locations, and cross-posts are common enough that company/title alone is unsafe.
+
+`job-details.md` should include the review summary: title, company, source, portal link,
+canonical job URL, application destination, retrieved time, match decision, score, reasons,
+warnings, unknown fields, freshness, duplicate signals, `job_id`, `snapshot_artifact_id`,
+and description hash. `job-description.txt` should be an exact readable copy of the
+preserved description text used for extraction and matching.
+
+Cleanup must be conservative. Rebuilding the readable workspace may update or archive
+review files, but must not delete immutable artifacts, database rows, keyword-plan
+artifacts, or audit history.
 
 ## Candidate Backends
 

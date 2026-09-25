@@ -57,8 +57,13 @@ class CodexAgentAMCPServerTests(unittest.TestCase):
             listed = server.handle_request({"jsonrpc": "2.0", "id": 2, "method": "tools/list"})
 
         self.assertEqual(initialized["result"]["serverInfo"]["name"], "job-automation-agent-a")
+        self.assertIn("call agent_a_save_keyword_plan", initialized["result"]["instructions"])
+        self.assertIn("Do not stop after reading the job", initialized["result"]["instructions"])
         tool_names = {tool["name"] for tool in listed["result"]["tools"]}
         self.assertEqual(tool_names, {"agent_a_get_job", "agent_a_save_keyword_plan"})
+        descriptions = {tool["name"]: tool["description"] for tool in listed["result"]["tools"]}
+        self.assertIn("follow this by", descriptions["agent_a_get_job"])
+        self.assertIn("after agent_a_get_job", descriptions["agent_a_save_keyword_plan"])
 
     def test_agent_a_tools_fetch_job_and_save_keyword_plan(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

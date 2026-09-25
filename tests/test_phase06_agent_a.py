@@ -7,6 +7,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+from app.discovery.job_review_workspace import write_latest_keyword_plan_review_file
 from app.mcp.runtime import ToolContext, build_phase04_registry
 from app.storage.space import SpacePaths, SpaceStore
 from app.core.openai_responses import OpenAIResponseResult
@@ -113,6 +114,19 @@ class Phase06AgentAKeywordPlanTests(unittest.TestCase):
             self.assertEqual(result["model"]["selected_model"], "gpt-5.5")
             self.assertEqual(result["priority_counts"], {"high": 1, "medium": 1, "low": 0})
             self.assertEqual(result["validation"]["status"], "passed")
+            keyword_files = list((store.paths.private_root / "job_reviews").glob("*/*/keywords.md"))
+            self.assertEqual(len(keyword_files), 1)
+            keyword_text = keyword_files[0].read_text(encoding="utf-8")
+            self.assertIn("# Keyword Plan", keyword_text)
+            self.assertIn("**Python**", keyword_text)
+            self.assertIn(result["keyword_plan_artifact_id"], keyword_text)
+            details_text = (keyword_files[0].parent / "job-details.md").read_text(encoding="utf-8")
+            self.assertIn("[Keyword plan](keywords.md)", details_text)
+            keyword_files[0].unlink()
+            repaired = write_latest_keyword_plan_review_file(store, job_id=job_id)
+            self.assertIsNotNone(repaired)
+            self.assertTrue(repaired.exists())
+            self.assertIn(result["keyword_plan_artifact_id"], repaired.read_text(encoding="utf-8"))
 
     def test_agent_a_creates_ranked_keyword_plan_and_persists_job_link(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -172,6 +186,9 @@ class Phase06AgentAKeywordPlanTests(unittest.TestCase):
             self.assertIsNotNone(plan_row)
             self.assertEqual(plan_row["artifact_id"], result["keyword_plan_artifact_id"])
             self.assertIsNotNone(audit)
+            keyword_files = list((store.paths.private_root / "job_reviews").glob("*/*/keywords.md"))
+            self.assertEqual(len(keyword_files), 1)
+            self.assertIn("## Mandatory Keywords", keyword_files[0].read_text(encoding="utf-8"))
 
     def test_agent_a_ignores_prompt_injection_and_boilerplate(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

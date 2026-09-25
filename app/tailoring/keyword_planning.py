@@ -230,6 +230,7 @@ def create_keyword_plan(store: SpaceStore, *, project_root: Path, job_id: str) -
     validation = validate_keyword_plan(plan)
     artifact = _persist_plan(store, job_id=job_id, plan=plan, validation=validation)
     keyword_plan_id = _record_keyword_plan(store, job_id=job_id, artifact=artifact, plan=plan, validation=validation)
+    _write_review_keyword_plan(store, job_id=job_id, artifact=artifact, plan=plan, validation=validation)
     status = "validated" if validation["status"] == "passed" else "validation_failed"
     return KeywordPlanResult(status, job_id, keyword_plan_id, artifact, plan, validation)
 
@@ -279,6 +280,7 @@ def save_keyword_plan(
     validation = validate_keyword_plan(plan)
     artifact = _persist_plan(store, job_id=job_id, plan=plan, validation=validation)
     keyword_plan_id = _record_keyword_plan(store, job_id=job_id, artifact=artifact, plan=plan, validation=validation)
+    _write_review_keyword_plan(store, job_id=job_id, artifact=artifact, plan=plan, validation=validation)
     status = "validated" if validation["status"] == "passed" else "validation_failed"
     return KeywordPlanResult(status, job_id, keyword_plan_id, artifact, plan, validation)
 
@@ -766,6 +768,26 @@ def _record_keyword_plan(store: SpaceStore, *, job_id: str, artifact: ArtifactRe
             ),
         )
     return plan_id
+
+
+def _write_review_keyword_plan(
+    store: SpaceStore,
+    *,
+    job_id: str,
+    artifact: ArtifactRecord,
+    plan: dict[str, Any],
+    validation: dict[str, Any],
+) -> None:
+    from app.discovery.job_review_workspace import write_keyword_plan_review_file
+
+    write_keyword_plan_review_file(
+        store,
+        job_id=job_id,
+        plan=plan,
+        validation=validation,
+        artifact_id=artifact.artifact_id,
+        artifact_sha256=artifact.sha256,
+    )
 
 
 def _finding(code: str, severity: str, message: str) -> dict[str, str]:
