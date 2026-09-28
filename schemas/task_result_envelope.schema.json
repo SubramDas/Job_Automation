@@ -16,49 +16,111 @@
     "errors"
   ],
   "properties": {
-    "schema_version": { "type": "string" },
-    "run_id": { "type": "string", "minLength": 1 },
-    "task_id": { "type": "string", "minLength": 1 },
-    "application_id": { "type": ["string", "null"] },
+    "schema_version": {
+      "type": "string"
+    },
+    "run_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "task_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "application_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
     "actor": {
       "type": "string",
-      "enum": ["core", "agent_a_resume", "agent_b_discovery", "agent_c_application", "validation"]
+      "enum": [
+        "core",
+        "agent_a_resume",
+        "agent_b_discovery",
+        "validation"
+      ]
     },
     "status": {
       "type": "string",
-      "enum": ["succeeded", "needs_user_input", "needs_review", "failed", "unsupported"]
+      "enum": [
+        "succeeded",
+        "needs_user_input",
+        "needs_review",
+        "failed",
+        "unsupported"
+      ]
     },
     "input_refs": {
       "type": "array",
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["kind", "id", "hash"],
+        "required": [
+          "kind",
+          "id",
+          "hash"
+        ],
         "properties": {
-          "kind": { "type": "string" },
-          "id": { "type": "string" },
-          "version": { "type": ["string", "null"] },
-          "hash": { "type": "string" }
+          "kind": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "version": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "hash": {
+            "type": "string"
+          }
         }
       }
     },
-    "policy_version": { "type": "string" },
-    "result_ref": { "type": ["string", "null"] },
+    "policy_version": {
+      "type": "string"
+    },
+    "result_ref": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
     "evidence": {
       "type": "array",
-      "items": { "type": "object" }
+      "items": {
+        "type": "object"
+      }
     },
     "errors": {
       "type": "array",
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["code", "message"],
+        "required": [
+          "code",
+          "message"
+        ],
         "properties": {
-          "code": { "type": "string" },
-          "message": { "type": "string" },
-          "retryable": { "type": "boolean" },
-          "redacted_detail": { "type": ["string", "null"] }
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "retryable": {
+            "type": "boolean"
+          },
+          "redacted_detail": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
         }
       }
     },
@@ -66,12 +128,35 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "latency_ms": { "type": ["integer", "null"], "minimum": 0 },
-        "model_tokens_in": { "type": ["integer", "null"], "minimum": 0 },
-        "model_tokens_out": { "type": ["integer", "null"], "minimum": 0 },
-        "estimated_cost": { "type": ["number", "null"], "minimum": 0 }
+        "latency_ms": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "model_tokens_in": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "model_tokens_out": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "estimated_cost": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        }
       }
     }
   }
 }
-

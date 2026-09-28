@@ -49,7 +49,7 @@ class JobMatcher:
         with self.store.connect() as db:
             job = db.execute("SELECT * FROM jobs WHERE id = ?", (job_id,)).fetchone()
             extraction_row = db.execute(
-                "SELECT * FROM job_extractions WHERE job_id = ? ORDER BY created_at DESC LIMIT 1",
+                "SELECT * FROM job_extractions WHERE job_id = ? ORDER BY created_at DESC, rowid DESC LIMIT 1",
                 (job_id,),
             ).fetchone()
             policy_row = db.execute(

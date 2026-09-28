@@ -17,7 +17,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-SCHEMA_VERSION = "2026-09-23.phase03"
+SCHEMA_VERSION = "2026-09-28.phase08"
 
 
 class SpaceError(ValueError):
@@ -323,6 +323,21 @@ class SpaceStore:
                 CREATE INDEX IF NOT EXISTS idx_job_keyword_plans_job
                   ON job_keyword_plans(job_id);
 
+                CREATE TABLE IF NOT EXISTS agent_c_suggestions (
+                  id TEXT PRIMARY KEY,
+                  job_id TEXT NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
+                  artifact_id TEXT NOT NULL,
+                  artifact_sha256 TEXT NOT NULL,
+                  description_hash TEXT NOT NULL,
+                  keyword_plan_sha256 TEXT NOT NULL,
+                  resume_source_sha256 TEXT NOT NULL,
+                  resume_conversion_sha256 TEXT NOT NULL,
+                  validation_json TEXT NOT NULL,
+                  created_at TEXT NOT NULL
+                );
+                CREATE INDEX IF NOT EXISTS idx_agent_c_suggestions_job
+                  ON agent_c_suggestions(job_id, created_at);
+
                 CREATE TABLE IF NOT EXISTS agent_b_review_actions (
                   id TEXT PRIMARY KEY,
                   run_id TEXT,
@@ -397,6 +412,28 @@ class SpaceStore:
                   subject_type TEXT NOT NULL,
                   subject_id TEXT NOT NULL,
                   details_json TEXT NOT NULL,
+                  created_at TEXT NOT NULL
+                );
+
+                CREATE TABLE IF NOT EXISTS fast_form_mappings (
+                  cache_key TEXT PRIMARY KEY,
+                  host TEXT NOT NULL,
+                  adapter_version TEXT NOT NULL,
+                  fingerprint TEXT NOT NULL,
+                  mappings_json TEXT NOT NULL,
+                  created_at TEXT NOT NULL,
+                  last_used_at TEXT NOT NULL,
+                  validated_count INTEGER NOT NULL DEFAULT 1
+                );
+
+                CREATE TABLE IF NOT EXISTS fast_mode_metrics (
+                  id TEXT PRIMARY KEY,
+                  application_id TEXT NOT NULL REFERENCES applications(id),
+                  destination_host TEXT NOT NULL,
+                  mode TEXT NOT NULL CHECK (mode IN ('adaptive', 'fast')),
+                  duration_ms REAL NOT NULL,
+                  adapter_action_count INTEGER,
+                  outcome TEXT NOT NULL,
                   created_at TEXT NOT NULL
                 );
                 """

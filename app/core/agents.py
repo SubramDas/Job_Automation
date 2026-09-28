@@ -13,19 +13,18 @@ from app.core.config import ConfigError, _read_json, _require_keys
 AGENT_IDS: tuple[str, ...] = (
     "agent_a_resume",
     "agent_b_discovery",
-    "agent_c_application",
+    "agent_c_resume_suggestions",
 )
 
 REQUIRED_SKILLS: dict[str, tuple[str, ...]] = {
     "agent_a_resume": ("keyword-evidence", "keyword-planning", "keyword-plan-review"),
     "agent_b_discovery": ("job-discovery", "job-extraction", "job-matching"),
-    "agent_c_application": ("form-preparation", "answer-resolution", "submission-reconciliation"),
+    "agent_c_resume_suggestions": ("resume-keyword-suggestions",),
 }
 
 ALLOWED_TOOLS: dict[str, tuple[str, ...]] = {
     "agent_a_resume": (
         "jobs.get_job",
-        "jobs.create_keyword_plan",
         "jobs.save_keyword_plan",
         "review.create_question",
         "review.get_question_status",
@@ -46,25 +45,18 @@ ALLOWED_TOOLS: dict[str, tuple[str, ...]] = {
         "workflow.save_checkpoint",
         "workflow.get_assigned_task",
     ),
-    "agent_c_application": (
-        "space.get_application_facts",
-        "space.resolve_answer",
-        "jobs.get_job",
-        "documents.get_artifact",
-        "review.create_question",
-        "review.get_question_status",
-        "review.submit_package_for_review",
-        "applications.inspect_form",
-        "applications.fill_fields",
-        "applications.attach_resume",
-        "applications.read_back",
-        "applications.request_submit",
-        "applications.get_confirmation",
-        "applications.reconcile_attempt",
-        "workflow.save_stage_result",
-        "workflow.save_checkpoint",
-        "workflow.get_assigned_task",
+    "agent_c_resume_suggestions": (
+        "agent_c_import_resume",
+        "agent_c_save_resume_markdown",
+        "agent_c_get_suggestion_context",
+        "agent_c_save_suggestions",
     ),
+}
+
+ALLOWED_MCP_MODES: dict[str, tuple[str, ...]] = {
+    "agent_a_resume": ("local_review",),
+    "agent_b_discovery": ("local_review",),
+    "agent_c_resume_suggestions": ("local_review",),
 }
 
 
@@ -134,8 +126,8 @@ def _validate_tools(agent_id: str, mcp: dict[str, Any]) -> None:
     _require_keys(mcp, {"schema_version", "agent_id", "mode", "tools"}, f"{agent_id} MCP")
     if mcp["agent_id"] != agent_id:
         raise ConfigError(f"{agent_id} MCP agent_id mismatch")
-    if mcp["mode"] != "synthetic_dry_run":
-        raise ConfigError(f"{agent_id} MCP mode must remain synthetic_dry_run")
+    if mcp["mode"] not in ALLOWED_MCP_MODES[agent_id]:
+        raise ConfigError(f"{agent_id} MCP mode must be one of {sorted(ALLOWED_MCP_MODES[agent_id])}")
     allowed = set(ALLOWED_TOOLS[agent_id])
     declared = set()
     for tool in mcp["tools"]:
@@ -145,7 +137,13 @@ def _validate_tools(agent_id: str, mcp: dict[str, Any]) -> None:
         declared.add(tool["name"])
         if tool["name"] not in allowed:
             raise ConfigError(f"{agent_id} declares unapproved tool: {tool['name']}")
-        if tool["external_effect"] not in ("none", "local_draft", "review_queue"):
+        if tool["external_effect"] not in (
+            "none",
+            "local_draft",
+            "review_queue",
+            "local_browser",
+            "space_write_local_draft",
+        ):
             raise ConfigError(f"{agent_id}.{tool['name']} has an unsafe external_effect")
     if not declared:
         raise ConfigError(f"{agent_id} MCP manifest must declare tools")
@@ -154,7 +152,10 @@ def _validate_tools(agent_id: str, mcp: dict[str, Any]) -> None:
 def validate_agent_packages(root: Path, config_dir: Path) -> tuple[AgentPackage, ...]:
     root = root.resolve()
     config_dir = config_dir.resolve()
-    models = _read_json(config_dir / "models.example.json")
+    models_path = config_dir / "models.json"
+    if not models_path.is_file():
+        models_path = config_dir / "models.example.json"
+    models = _read_json(models_path)
     packages: list[AgentPackage] = []
     agents_root = root / "agents"
     for agent_id in AGENT_IDS:

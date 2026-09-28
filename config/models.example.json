@@ -1,15 +1,10 @@
 {
   "schema_version": "2026-09-23.phase01",
   "provider": {
-    "name": "openai",
-    "status": "approved_for_keyword_planning",
+    "name": "codex_session",
+    "status": "deferred_for_privacy_review",
     "personal_data_allowed": false,
-    "live_llm_enabled_env": "AGENT_A_LIVE_LLM",
-    "api_key_env": "OPENAI_API_KEY",
-    "allowed_stages": [
-      "keyword_planning"
-    ],
-    "notes": "Only Agent A keyword planning is approved for provider use. Send job descriptions only; do not send resumes or candidate private facts."
+    "notes": "Agent A uses the active Codex session for job descriptions only. Agent C resume suggestions remain blocked until personal resume data sharing, provider handling, and retention are explicitly approved; no direct provider API path is used."
   },
   "agents": {
     "agent_a_resume": {
@@ -26,11 +21,9 @@
       ],
       "max_schema_repairs": 1
     },
-    "agent_c_application": {
-      "default_model": "gpt-5.4-mini",
-      "fallback_models": [
-        "gpt-5.4"
-      ],
+    "agent_c_resume_suggestions": {
+      "default_model": "codex-session-model",
+      "fallback_models": [],
       "max_schema_repairs": 1
     }
   }

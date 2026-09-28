@@ -1,25 +1,14 @@
-# Application State Machine
+# Job Workflow State Contract
 
-Status: Phase 01 contract.
+Status: Phase 01 contract, scoped to discovery and keyword planning.
 
-Normal path:
+Normal progression:
 
-`discovered -> extracted -> evaluated -> shortlisted -> keyword_planning -> validated -> preparing -> ready -> submitting -> submitted`
+`discovered -> extracted -> evaluated -> shortlisted -> keyword_planning -> complete`
 
-Alternate states:
+Alternate outcomes include `rejected_by_preferences`, `needs_review`, `manual_handoff`,
+`expired`, `retryable_failure`, `permanent_failure`, and `cancelled`.
 
-- `rejected_by_preferences`
-- `needs_user_input`
-- `needs_review`
-- `manual_handoff`
-- `expired`
-- `retryable_failure`
-- `permanent_failure`
-- `submission_unknown`
-- `cancelled`
-
-Each state transition must produce a redacted audit event with the actor, prior state, next
-state, relevant input versions, idempotency key where applicable, and outcome. Later database
-implementation must enforce one submission owner per application and prohibit blind retries
-from `submission_unknown`.
-
+Each transition records a redacted audit event with actor, prior and next state, relevant input
+versions, idempotency key where applicable, and outcome. External employer application actions
+are outside this workflow.

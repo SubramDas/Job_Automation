@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 import json
+import io
 import sqlite3
 import tempfile
 import unittest
 import zipfile
+from contextlib import redirect_stdout
 from pathlib import Path
 
+from app.profile import space_answers
 from app.profile.onboarding import OnboardingService
 from app.profile.resume_ingestion import ingest_resume
 from app.storage.space import SpaceError, SpacePaths, SpaceStore
@@ -78,6 +81,39 @@ class SpacePhase03Tests(unittest.TestCase):
                 row = db.execute("SELECT sha256, immutable FROM artifacts WHERE id = ?", (artifact.artifact_id,)).fetchone()
             self.assertEqual(row["sha256"], artifact.sha256)
             self.assertEqual(row["immutable"], 1)
+
+    def test_space_answers_cli_adds_confirmed_reusable_answer(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            with redirect_stdout(io.StringIO()):
+                result = space_answers.main_with_args(
+                    [
+                        "--project-root",
+                        str(root),
+                        "add",
+                        "--key",
+                        "contact.email",
+                        "--question",
+                        "Email address",
+                        "--value",
+                        "candidate@example.test",
+                        "--scope",
+                        "{}",
+                    ]
+                )
+
+            self.assertEqual(result, 0)
+            store = SpaceStore(SpacePaths.from_project_root(root))
+            with store.connect() as db:
+                row = db.execute(
+                    """
+                    SELECT semantic_key, typed_value_json, confirmation_state
+                    FROM reusable_answers
+                    WHERE semantic_key = 'contact.email'
+                    """
+                ).fetchone()
+            self.assertEqual(row["typed_value_json"], '"candidate@example.test"')
+            self.assertEqual(row["confirmation_state"], "confirmed")
 
     def test_agents_can_propose_but_not_confirm_facts(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

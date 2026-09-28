@@ -5,6 +5,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from app.discovery.manual_import import extract_job_description
 from app.matching.calibration import (
     LabeledMatchCase,
     evaluate_agent_b_model_routes,
@@ -88,6 +89,23 @@ class Phase05AgentBTests(unittest.TestCase):
                 ).fetchone()
             self.assertIsNotNone(artifact)
             self.assertIsNotNone(extraction)
+
+    def test_experience_prefers_requirement_over_company_history(self) -> None:
+        text = """
+Title: Deep Learning Engineer
+Company: Example AI
+
+Example AI has been transforming computing for more than 25 years.
+
+Requirements
+- BS or MS degree in Computer Science
+- 5+ Years of Experience in developing or using deep learning frameworks
+- Proficiency in C and C++
+"""
+        extraction = extract_job_description(text, canonical_url="https://careers.example.test/jobs/deep")
+
+        self.assertEqual(extraction["experience"]["value"]["minimum_years"], 5)
+        self.assertFalse(extraction["experience"]["value"]["ambiguous"])
 
     def test_exact_duplicate_reuses_existing_job_without_new_snapshot(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

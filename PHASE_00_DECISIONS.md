@@ -52,20 +52,20 @@ user explicitly narrows the product further:
 
 ## Approved architecture
 
-- One local-first modular application for the MVP, with three logical runtime roles inside a
+- One local-first modular application for the MVP, with two logical runtime roles inside a
   single process where practical.
 - Agent A handles job-description keyword planning; Agent B handles job import, extraction,
-  and matching; Agent C handles draft form preparation and later guarded submission.
+  and matching. Application-form preparation and submission are outside the current scope.
 - Deterministic services own schemas, state transitions, filtering, authorization,
   deduplication, validation, budgets, and audit history.
-- The proposed per-agent `AGENT.md`, three focused skills, `agent.yaml`, and scoped `mcp.json`
-  layout from the implementation task list.
+- The proposed per-agent `AGENT.md`, focused skills, `agent.yaml`, and scoped `mcp.json`
+  layout for Agents A and B from the implementation task list.
 - The proposed model routing is subject to current availability, pricing, privacy terms, and
   evaluation during implementation. No model choice is accepted merely by accepting the
   overall product design.
-- Milestone M3, the end-to-end draft workflow, precedes any live submission capability.
+- Application preparation and submission are outside the current product scope.
 
-The user approved this scope and architecture on 2026-09-23. The MVP will run locally on the
+The user approved the initial scope and architecture on 2026-09-23. On 2026-09-27, the user narrowed the product to profile/Space, job discovery and matching, and keyword planning; application-form and submission functionality was removed. The MVP will run locally on the
 user's laptop and expose a command-line interface. Provider selection and personal-data
 handling remain pending and do not inherit approval from the architecture decision.
 

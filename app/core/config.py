@@ -44,20 +44,32 @@ def _require_keys(data: dict[str, Any], keys: set[str], label: str) -> None:
 def validate_config(config_dir: Path) -> ValidationResult:
     config_dir = config_dir.resolve()
     project_root = config_dir.parent
-    models = _read_json(config_dir / "models.example.json")
+    models_path = config_dir / "models.json"
+    if not models_path.is_file():
+        models_path = config_dir / "models.example.json"
+    models = _read_json(models_path)
     sources = _read_json(config_dir / "sources.example.json")
     policies = _read_json(config_dir / "policies.example.json")
     storage = _read_json(config_dir / "storage.example.json")
 
     _require_keys(models, {"schema_version", "provider", "agents"}, "models")
     _require_keys(models["provider"], {"name", "status", "personal_data_allowed"}, "models.provider")
-    allowed_provider_statuses = {"deferred_for_privacy_review", "approved_for_keyword_planning"}
+    allowed_provider_statuses = {
+        "deferred_for_privacy_review",
+        "approved_for_keyword_planning",
+        "approved_for_personal_data_processing",
+    }
     if models["provider"]["status"] not in allowed_provider_statuses:
         raise ConfigError("models.provider.status must be deferred or approved only for keyword planning")
     if models["provider"]["status"] == "approved_for_keyword_planning":
         allowed_stages = set(models["provider"].get("allowed_stages", []))
         if allowed_stages != {"keyword_planning"}:
             raise ConfigError("approved provider use must be limited to keyword_planning")
+    if models["provider"]["status"] == "approved_for_personal_data_processing":
+        allowed_stages = set(models["provider"].get("allowed_stages", []))
+        supported_stages = {"keyword_planning", "resume_keyword_suggestions"}
+        if not models["provider"].get("personal_data_allowed") or not allowed_stages or allowed_stages - supported_stages:
+            raise ConfigError("personal-data approval requires personal_data_allowed and explicit supported allowed_stages")
     for agent_name, agent_config in models["agents"].items():
         _require_keys(agent_config, {"default_model", "fallback_models", "max_schema_repairs"}, agent_name)
         if agent_config["max_schema_repairs"] > 1:
@@ -72,11 +84,9 @@ def validate_config(config_dir: Path) -> ValidationResult:
         if source["status"] == "enabled_live":
             raise ConfigError(f"{source['id']} cannot be live-enabled in Phase 01")
 
-    _require_keys(policies, {"schema_version", "mode", "submission", "error_codes"}, "policies")
-    if policies["mode"] != "synthetic_dry_run":
-        raise ConfigError("policies.mode must be synthetic_dry_run in Phase 01")
-    if policies["submission"]["live_submission_enabled"] is not False:
-        raise ConfigError("live submission must be disabled")
+    _require_keys(policies, {"schema_version", "mode", "limits", "error_codes"}, "policies")
+    if policies["mode"] != "local_review":
+        raise ConfigError("policies.mode must be local_review")
     unknown_errors = set(policies["error_codes"]) - set(ERROR_CODES)
     if unknown_errors:
         raise ConfigError(f"unknown configured error codes: {sorted(unknown_errors)}")
@@ -108,7 +118,7 @@ def validate_config(config_dir: Path) -> ValidationResult:
     return ValidationResult(
         config_dir=config_dir,
         files_checked=(
-            "models.example.json",
+            models_path.name,
             "sources.example.json",
             "policies.example.json",
             "storage.example.json",

@@ -36,7 +36,7 @@ Skills cannot add tools, change source permissions, or relax factual rules.
 
 ## Tools
 
-Allowed tool families: assigned `jobs.get_job`, `jobs.save_keyword_plan` for Codex-generated plans, `jobs.create_keyword_plan` only for local fallback/testing, contextual `review` questions when the job text is ambiguous, and own-task `workflow` checkpoint/result tools. No resume document tools, account login, browser navigation, job search, form fill, upload, or submission tools are available to Agent A.
+Allowed tool families: assigned `jobs.get_job`, `jobs.save_keyword_plan` for Codex-generated plans, contextual `review` questions when the job text is ambiguous, and own-task `workflow` checkpoint/result tools. No resume document tools, account login, browser navigation, job search, form fill, upload, submission, local keyword extractor, or direct provider API are available to Agent A.
 
 ## Factual Boundaries
 
@@ -56,7 +56,7 @@ Save checkpoints after job retrieval, Codex keyword extraction, ranking, artifac
 
 ## Handoff
 
-Hand off the job ID, keyword-plan artifact ID, keyword-plan hash, priority summary, warnings, and unresolved questions. Agent C receives no resume artifact from Agent A.
+Return the job ID, keyword-plan artifact ID and hash, priority summary, warnings, and unresolved questions for user review. Do not hand off resume files or initiate application-form workflows.
 
 ## Completion Criteria
 

@@ -1,0 +1,11 @@
+{
+  "schema_version": "2026-09-28.agentc",
+  "agent_id": "agent_c_resume_suggestions",
+  "mode": "local_review",
+  "tools": [
+    {"name": "agent_c_import_resume", "scope": "user-provided local .tex path copied into the single private resume slot", "external_effect": "local_draft"},
+    {"name": "agent_c_save_resume_markdown", "scope": "cache Markdown for the matching resume source hash", "external_effect": "local_draft"},
+    {"name": "agent_c_get_suggestion_context", "scope": "assigned job plan and current cached private resume Markdown only", "external_effect": "none"},
+    {"name": "agent_c_save_suggestions", "scope": "assigned job suggestion artifact with full keyword placement coverage", "external_effect": "local_draft"}
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "schema_version": "2026-09-28.agentc",
+  "agent_id": "agent_c_resume_suggestions",
+  "name": "Agent C Resume Keyword Suggestions",
+  "canonical_instruction": "AGENT.md",
+  "contributor_instruction": "AGENTS.md",
+  "model": {
+    "default": "codex-session-model",
+    "fallbacks": [],
+    "max_schema_repairs": 1
+  },
+  "instruction_precedence": [
+    "global_application_invariants",
+    "agent_c_resume_suggestions/AGENT.md",
+    "selected_skill/SKILL.md",
+    "task_inputs"
+  ],
+  "skills": [
+    {"id": "resume-keyword-suggestions", "path": "skills/resume-keyword-suggestions/SKILL.md"}
+  ],
+  "mcp_manifest": "mcp.json",
+  "writable_resources": ["job-linked resume keyword suggestion artifacts", "private job review suggestion copy"],
+  "completion_state": "proposed"
+}

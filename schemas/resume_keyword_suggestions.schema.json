@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://job-automation.local/schemas/resume-keyword-suggestions.schema.json",
+  "title": "Agent C job-linked resume keyword suggestions",
+  "type": "object",
+  "required": ["schema_version", "job_id", "description_hash", "keyword_plan_id", "keyword_plan_artifact_id", "keyword_plan_sha256", "resume_source_sha256", "resume_conversion_sha256", "resume_converter_version", "prompt_version", "model", "validation", "keyword_suggestions", "created_at"],
+  "properties": {
+    "schema_version": {"const": "2026-09-28.agent-c-v3"},
+    "job_id": {"type": "string", "minLength": 1},
+    "description_hash": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "keyword_plan_id": {"type": "string", "minLength": 1},
+    "keyword_plan_artifact_id": {"type": "string", "minLength": 1},
+    "keyword_plan_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "resume_source_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "resume_conversion_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "resume_converter_version": {"type": "string"},
+    "prompt_version": {"const": "agent-c-keyword-three-lines-v3"},
+    "model": {"type": "object"},
+    "validation": {"type": "object", "required": ["status", "findings", "checked_at"]},
+    "keyword_suggestions": {
+      "type": "array", "minItems": 1,
+      "items": {
+        "type": "object", "required": ["keyword", "suggestions"],
+        "properties": {
+          "keyword": {"type": "string", "minLength": 1},
+          "suggestions": {
+            "type": "array", "minItems": 3, "maxItems": 3,
+            "items": {
+              "type": "object", "required": ["section_or_project", "resume_pointer", "proposed_line", "rationale"],
+              "properties": {
+                "section_or_project": {"type": "string", "minLength": 1},
+                "resume_pointer": {"type": "string", "minLength": 1, "description": "Exact existing resume line or section text that anchors this suggestion."},
+                "proposed_line": {"type": "string", "minLength": 1, "description": "May contain a hypothetical claim; user verifies before use."},
+                "rationale": {"type": "string", "minLength": 1}
+              },
+              "additionalProperties": false
+            }
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "created_at": {"type": "string", "format": "date-time"}
+  },
+  "additionalProperties": false
+}

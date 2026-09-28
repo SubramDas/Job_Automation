@@ -487,7 +487,7 @@ class AnswerMemoryService:
         if answer["reuse_permission"] == "this_application_only":
             if answer_scope.get("application_id") != requested_context.get("application_id"):
                 return "application scope mismatch"
-        elif answer["reuse_permission"] == "same_scope":
+        elif answer["reuse_permission"] in {"same_scope", "same_semantic_key_and_scope"}:
             if answer_scope != required_context:
                 return "scope mismatch"
         elif answer["reuse_permission"] in {"global", "broader_scope"}:

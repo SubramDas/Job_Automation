@@ -81,11 +81,11 @@ def load_job_review_record(store: SpaceStore, job_id: str) -> dict[str, Any]:
         if job is None:
             raise ValueError(f"unknown job id: {job_id}")
         extraction = db.execute(
-            "SELECT * FROM job_extractions WHERE job_id = ? ORDER BY created_at DESC LIMIT 1",
+            "SELECT * FROM job_extractions WHERE job_id = ? ORDER BY created_at DESC, rowid DESC LIMIT 1",
             (job_id,),
         ).fetchone()
         match = db.execute(
-            "SELECT * FROM match_results WHERE job_id = ? ORDER BY created_at DESC LIMIT 1",
+            "SELECT * FROM match_results WHERE job_id = ? ORDER BY created_at DESC, rowid DESC LIMIT 1",
             (job_id,),
         ).fetchone()
         artifact = db.execute(

@@ -1,9 +1,10 @@
 # Local Setup
 
-Status: local dry-run foundation through Phase 07. This setup validates contracts,
-synthetic configuration, agent instruction packages, private-profile storage, manual job
-import/matching, Agent A keyword planning, and reusable-answer/question handling using
-synthetic data only. It does not connect accounts, schedule runs, or submit applications.
+Status: local-first profile, job discovery/import, matching, keyword planning, and gated Agent C resume suggestions.
+This setup validates configuration and contracts, private profile storage, job import and
+matching, Agent A keyword planning, and Space profile utilities using local or
+synthetic data. Employer application preparation, browser automation, uploads, submissions,
+and recurring schedules are outside the current scope.
 
 ## Requirements
 
@@ -16,6 +17,13 @@ synthetic data only. It does not connect accounts, schedule runs, or submit appl
 ```bash
 python3 -m app.core.config --config-dir config
 python3 -m unittest discover -s tests
+```
+
+Manage user-confirmed reusable answer metadata in Space:
+
+```bash
+python3 -m app.profile.space_answers add --key contact.email --question "Email address" --value "name@example.com"
+python3 -m app.profile.space_answers list
 ```
 
 Phase 03 writes private data only under `private/` by default. The test suite uses temporary
@@ -69,6 +77,31 @@ description/details text with the link and ask Agent B to import it. The Codex-f
 tool `agent_b_import_job_text` saves the exact pasted text, extracts fields, evaluates the
 match, and refreshes `private/job_reviews/` without scraping the linked site.
 
+Phase 05G adds a single-link fetch path for public job pages:
+
+```text
+Agent B mcp fetch <job-link>
+```
+
+Codex should call the configured Fetch MCP to retrieve the page as readable markdown/text,
+then pass the fetched content into Agent B's `agent_b_fetch_job_url` tool. A successful
+fetch creates the same outputs as manual import: a saved `job_id`,
+immutable description artifact, match decision, and readable files under
+`private/job_reviews/`. This path is read-only and does not authorize login, browser
+automation, form filling, applying, CAPTCHA bypass, or account activity. If the page cannot
+be fetched cleanly, paste the JD text and link and use the manual import path.
+
+After Agent B saves a usable description, it returns a `pending_codex_mcp` handoff with the
+saved `job_id`. Codex completes it by calling Agent A MCP to read the job, generate keywords
+with the current session model, and save the plan. The validated result is then mirrored as
+`keywords.md` in the job's review folder. Blocked or manual-handoff pages do not trigger an
+Agent A handoff. The same contract applies to pasted imports and normal multi-source discovery.
+
+Some ATS pages, including Workday, may return `Page failed to be simplified from HTML` in
+Fetch MCP's simplified mode while still exposing useful JobPosting metadata in raw HTML. In
+that case, retry Fetch MCP with raw HTML and pass that raw content to `agent_b_fetch_job_url`;
+Agent B normalizes JSON-LD/meta JobPosting data before saving.
+
 Use `--json` for machine-readable CLI output. The detailed JSON and Markdown run reports are
 stored as private artifacts and referenced by opaque artifact IDs in the command output.
 
@@ -118,44 +151,13 @@ keyword plan, call the MCP save tool, and create/update the readable
 
 The MCP tool sequence is:
 
-1. `jobs.get_job` with the assigned `job_id`.
+1. `agent_a_get_job` with the assigned `job_id`.
 2. Codex generates the structured keyword plan from the job description only.
-3. `jobs.save_keyword_plan` with the ranked keywords, warnings, and model metadata.
+3. `agent_a_save_keyword_plan` with the ranked keywords, warnings, and model metadata.
 
-The older direct Python runner remains as a local fallback/testing path. It can use the
-deterministic extractor and, if configured, the OpenAI Responses API. It cannot use the
-Codex chat model from a plain terminal process.
-
-Save a job description locally when you want to run Agent A without an existing Agent B job:
-
-```bash
-mkdir -p private/inputs
-$EDITOR private/inputs/job.txt
-```
-
-Run Agent A directly from a job description file:
-
-```bash
-python3 -m app.tailoring.agent_a_run \
-  --job-description-file private/inputs/job.txt \
-  --job-url "https://example.com/job-posting"
-```
-
-Use JSON output when you want artifact IDs and keyword details in a machine-readable form:
-
-```bash
-python3 -m app.tailoring.agent_a_run \
-  --job-description-file private/inputs/job.txt \
-  --job-url "https://example.com/job-posting" \
-  --json
-```
-
-If Agent B already saved the job, run Agent A with the existing job ID:
-
-```bash
-python3 -m app.tailoring.agent_a_run \
-  --job-id job_xxx
-```
+Agent B returns a `pending_codex_mcp` handoff after saving a usable job description. Codex must
+complete that handoff in the same workflow using the two Agent A MCP calls above. There is no
+local keyword extractor and no direct OpenAI API fallback.
 
 Agent B run reports show `job_id` values in their detailed JSON artifacts. To inspect recent
 private JSON artifacts for saved job IDs:
@@ -177,32 +179,67 @@ Agent A prints and stores the keyword-plan artifact ID, the job ID, priority cou
 warnings. The keyword plan is linked to the job record so you can manually update your own
 resume using the high/medium/low terms.
 
-### Agent A model configuration
+## Agent C resume keyword suggestions
 
-For the preferred Codex + MCP workflow, model choice is controlled by the Codex session you
-are using. The project does not need an `OPENAI_API_KEY` for that path.
-
-The fallback Python runner is configured for optional OpenAI keyword planning in
-`config/models.example.json`:
-
-- `gpt-5.5` is the current fallback-runner default in this workspace because the user wants
-  a low-cost model where available.
-- `gpt-5.6-terra` is the fallback for ambiguous postings or schema repair.
-- Provider use is limited to `keyword_planning`; Agent A must not send resumes or candidate
-  private facts to the provider.
-
-Set your key and live flag in `.env` only if you want the fallback runner to use the
-OpenAI Responses API directly:
+Agent C accepts the resume's local `.tex` path directly. It keeps exactly one active source
+at `private/inputs/resume.tex` and one generated file at `private/inputs/resume.md`. Giving
+it a different path replaces the active pair; giving it the same source reuses the existing
+Markdown. The active Codex session generates clean Markdown on first import. Regenerating
+the same source requires an explicit request. A local standard-library fallback remains
+available if needed:
 
 ```bash
-OPENAI_API_KEY=your_key_here
-AGENT_A_LIVE_LLM=true
+python3 -m app.profile.resume_conversion /path/to/resume.tex
+python3 -m app.profile.resume_conversion --regenerate
 ```
 
-Live calls use structured JSON output, `store: false`, and send only the job description. If
-the API call fails, Agent A records a `live_llm_fallback` warning and uses the deterministic
-local extractor so the run still produces a reviewable keyword plan. Keep
-`AGENT_A_LIVE_LLM=false` when you want local-only behavior.
+The Markdown and its hash manifest stay under `private/inputs/`. Agent C does not edit the
+source file at the path you provide. Connect the server as a local stdio MCP in Codex by
+adding this table to `~/.codex/config.toml` (or the project `.codex/config.toml`):
+
+```toml
+[mcp_servers.job-automation-agent-c]
+command = "python3"
+args = ["-m", "app.mcp.codex_agent_c_server"]
+cwd = "/home/subramd/Job_Automation"
+default_tools_approval_mode = "prompt"
+enabled_tools = ["agent_c_import_resume", "agent_c_save_resume_markdown", "agent_c_get_suggestion_context", "agent_c_save_suggestions"]
+```
+
+Codex's current OpenAI Docs describe local stdio MCP configuration through
+`mcp_servers` entries and support `command`, `args`, `cwd`, and tool approval settings.
+After adding it, restart/reload Codex and run `codex mcp list` to confirm it is connected.
+This server is local stdio; do not expose it as a public HTTP endpoint because it can read
+the resume path you provide.
+
+After the provider/privacy decision is approved, give
+Agent C the local resume path and job ID; once that job has a saved Agent A keyword plan, it
+imports/converts the resume if needed and creates three evidence-based edit options plus a
+separate placement recommendation for every plan keyword. The review artifact is saved as
+`resume-keyword-suggestions.md` in the job folder. Project edits cite evidence and the same-
+project line to replace, and are rejected if the proposed rendered line is longer. Every
+keyword gets a suggested location; unsupported terms are marked `needs_confirmation` with
+conditional wording. Agent C returns advice only; choose and apply edits to the TeX file
+manually.
+
+**Privacy gate:** project decision P00-12 still permits only synthetic candidate data to be
+processed by a model. The Agent C MCP tools refuse to return resume text or save suggestions
+until model configuration explicitly approves personal-data processing and includes
+`resume_keyword_suggestions` in `provider.allowed_stages`. Do not change that setting until
+provider data handling, sharing, and retention have been reviewed. The deterministic local
+fallback converter does not send data to a model; the preferred MCP conversion does. After
+that review, put your approved provider values in the
+gitignored `config/models.json` (starting from `config/models.example.json`); the required
+provider fields are `status: "approved_for_personal_data_processing"`,
+`personal_data_allowed: true`, and `allowed_stages` containing
+`"resume_keyword_suggestions"`. The normal config validator checks this local file when it
+exists.
+
+### Agent A model configuration
+
+Model choice is controlled by the active Codex session. The project does not use an
+`OPENAI_API_KEY`, `AGENT_A_LIVE_LLM`, a local keyword extractor, or a direct provider API for
+Agent A keyword generation.
 
 Jobicy does not require an API key, but its source attribution and canonical URL must be
 preserved in any displayed listing. Other candidates such as Adzuna and USAJOBS require API
@@ -256,11 +293,17 @@ ruff check .
 ruff format .
 ```
 
-Installing dependencies does not enable live submissions. Live discovery, account login,
-uploads, form submission, scheduling, and provider use remain later-phase work requiring
-separate approval.
+Installing dependencies does not enable account connections, employer contact, application
+form automation, recurring schedules, or provider use. Those capabilities are outside the
+current project scope.
 
  <!-- Title: Embedded Firmware Engineer
   Company: Schneider Electric
   Link: https://careers.se.com/jobs/135889...
   JD: -->
+
+  <!-- google-chrome     --remote-debugging-port=9222     --user-data-dir=/tmp/codex-visible-chrome -->
+
+
+  <!-- Things to add -->
+  <!-- - After keyword is made, it should take my resume and tell me where should I add those keywords and give 3 suggestions for each words for mandatory, recommended and optional -->

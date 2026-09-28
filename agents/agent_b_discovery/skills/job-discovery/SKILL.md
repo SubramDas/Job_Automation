@@ -2,8 +2,9 @@
 
 ## Trigger
 
-Use when planning permitted searches, processing synthetic source results, or accepting a
-manual job description and source URL.
+Use when planning permitted searches, processing synthetic source results, accepting a
+manual job description and source URL, or importing content fetched from a user-supplied
+public job URL through Fetch MCP.
 
 ## Procedure
 
@@ -12,14 +13,21 @@ manual job description and source URL.
    work-mode rules.
 3. Use only sources whose capability flags permit the requested operation.
 4. Preserve source URL, source job ID when available, retrieval time, and raw description.
-5. Store the durable job record through Space/artifacts, then mirror saved jobs into the
+5. For `Agent B mcp fetch <url>` requests, use the configured Fetch MCP only for read-only
+   page retrieval, then pass the fetched markdown/text and original URL through the normal
+   import path.
+6. Store the durable job record through Space/artifacts, then mirror saved jobs into the
    private review workspace when that feature is enabled.
-6. Route unsupported sources to manual import or manual handoff.
+7. Route unsupported sources, blocked fetches, JavaScript-only pages, login/CAPTCHA pages,
+   and unusable page-shell fetches to manual import or manual handoff.
 
 ## Examples
 
 Positive: A fictional pasted employer URL plus job text is accepted as manual import and
 saved with provenance.
+
+Positive: A public employer job URL fetched through Fetch MCP is saved with the same
+snapshot, extraction, match result, and review workspace files as a pasted import.
 
 Negative: Do not automate LinkedIn website activity when the capability registry marks it
 manual handoff only.

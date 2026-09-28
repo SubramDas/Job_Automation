@@ -25,7 +25,6 @@ from app.matching.evaluator import JobMatcher
 from app.profile.onboarding import OnboardingService
 from app.storage.space import SpaceError, SpaceStore, new_id, stable_json, utc_now
 from app.tailoring.keyword_planning import (
-    create_keyword_plan,
     save_keyword_plan,
 )
 
@@ -38,29 +37,18 @@ ToolHandler = Callable[["ToolContext", dict[str, Any]], dict[str, Any]]
 PHASE04_TOOL_NAMES: tuple[str, ...] = (
     "space.get_career_evidence",
     "space.get_search_profile",
-    "space.get_application_facts",
     "space.resolve_answer",
     "jobs.search_sources",
     "jobs.fetch_description",
     "jobs.save_job",
     "jobs.get_job",
     "jobs.evaluate_match",
-    "jobs.create_keyword_plan",
     "jobs.save_keyword_plan",
-    "documents.get_artifact",
     "review.create_question",
     "review.get_question_status",
-    "review.submit_package_for_review",
     "workflow.save_stage_result",
     "workflow.save_checkpoint",
     "workflow.get_assigned_task",
-    "applications.inspect_form",
-    "applications.fill_fields",
-    "applications.attach_resume",
-    "applications.read_back",
-    "applications.request_submit",
-    "applications.get_confirmation",
-    "applications.reconcile_attempt",
 )
 
 
@@ -91,7 +79,6 @@ class ToolContext:
     task_id: str
     application_id: str | None = None
     assigned_job_ids: frozenset[str] = frozenset()
-    assigned_artifact_ids: frozenset[str] = frozenset()
     deadline_seconds: float = DEFAULT_DEADLINE_SECONDS
     cancelled: bool = False
 
@@ -213,29 +200,18 @@ class Phase04Services:
         definitions = (
             ("space.get_career_evidence", (), ("facts",), "none", self.get_career_evidence),
             ("space.get_search_profile", (), ("policy",), "none", self.get_search_profile),
-            ("space.get_application_facts", ("application_id",), ("facts",), "none", self.get_application_facts),
             ("space.resolve_answer", ("semantic_key", "scope"), ("answer_id",), "none", self.resolve_answer),
             ("jobs.search_sources", ("source_id",), ("source", "status"), "none", self.search_sources),
             ("jobs.fetch_description", ("source_id", "url"), ("status",), "none", self.fetch_description),
             ("jobs.save_job", ("source_id", "url", "description"), ("job_id",), "local_db", self.save_job),
             ("jobs.get_job", ("job_id",), ("job", "description"), "none", self.get_job),
             ("jobs.evaluate_match", ("job_id",), ("decision",), "none", self.evaluate_match),
-            ("jobs.create_keyword_plan", ("job_id",), ("status", "keyword_plan_artifact_id"), "local_artifact", self.create_keyword_plan),
             ("jobs.save_keyword_plan", ("job_id", "keywords"), ("status", "keyword_plan_artifact_id"), "local_artifact", self.save_keyword_plan),
-            ("documents.get_artifact", ("artifact_id",), ("artifact",), "none", self.get_artifact),
             ("review.create_question", ("field_context", "reason"), ("question_id",), "review_queue", self.create_question),
             ("review.get_question_status", ("question_id",), ("question",), "none", self.get_question_status),
-            ("review.submit_package_for_review", ("application_id", "package"), ("review_id",), "review_queue", self.submit_package_for_review),
             ("workflow.save_stage_result", ("stage", "result"), ("result_id",), "local_db", self.save_stage_result),
             ("workflow.save_checkpoint", ("application_id", "stage", "checkpoint"), ("checkpoint_id",), "local_db", self.save_checkpoint),
             ("workflow.get_assigned_task", (), ("task",), "none", self.get_assigned_task),
-            ("applications.inspect_form", ("form_id",), ("fields",), "none", self.inspect_form),
-            ("applications.fill_fields", ("form_id", "answers"), ("draft_id",), "local_draft", self.fill_fields),
-            ("applications.attach_resume", ("draft_id", "artifact_id"), ("attachment",), "local_draft", self.attach_resume),
-            ("applications.read_back", ("draft_id",), ("draft",), "none", self.read_back),
-            ("applications.request_submit", ("application_id",), ("status",), "disabled", self.request_submit),
-            ("applications.get_confirmation", ("attempt_id",), ("status",), "none", self.get_confirmation),
-            ("applications.reconcile_attempt", ("attempt_id",), ("status",), "none", self.reconcile_attempt),
         )
         if tuple(item[0] for item in definitions) != PHASE04_TOOL_NAMES:
             raise ConfigError("Phase 04 tool definitions drifted from PHASE04_TOOL_NAMES")
@@ -283,22 +259,6 @@ class Phase04Services:
                 "weighted_preferences": json.loads(row["weighted_preferences_json"]),
                 "exclusions": json.loads(row["exclusions_json"]),
             }
-        }
-
-    def get_application_facts(self, context: ToolContext, args: dict[str, Any]) -> dict[str, Any]:
-        self._require_application_scope(context, args["application_id"])
-        rows = self._confirmed_facts(limit=100)
-        return {
-            "facts": [
-                {
-                    "id": row["id"],
-                    "field_key": row["field_key"],
-                    "value_type": row["value_type"],
-                    "sensitivity": row["sensitivity"],
-                    "version": row["version"],
-                }
-                for row in rows
-            ]
         }
 
     def resolve_answer(self, context: ToolContext, args: dict[str, Any]) -> dict[str, Any]:
@@ -391,11 +351,11 @@ class Phase04Services:
         with self.store.connect() as db:
             row = db.execute("SELECT * FROM jobs WHERE id = ?", (job_id,)).fetchone()
             extraction = db.execute(
-                "SELECT * FROM job_extractions WHERE job_id = ? ORDER BY created_at DESC LIMIT 1",
+                "SELECT * FROM job_extractions WHERE job_id = ? ORDER BY created_at DESC, rowid DESC LIMIT 1",
                 (job_id,),
             ).fetchone()
             match = db.execute(
-                "SELECT * FROM match_results WHERE job_id = ? ORDER BY created_at DESC LIMIT 1",
+                "SELECT * FROM match_results WHERE job_id = ? ORDER BY created_at DESC, rowid DESC LIMIT 1",
                 (job_id,),
             ).fetchone()
             artifact = db.execute(
@@ -439,13 +399,6 @@ class Phase04Services:
             "review_reasons": result.review_reasons,
         }
 
-    def create_keyword_plan(self, context: ToolContext, args: dict[str, Any]) -> dict[str, Any]:
-        job_id = args["job_id"]
-        if context.assigned_job_ids and job_id not in context.assigned_job_ids:
-            raise MCPError("authorization_failed", "job is outside this task scope")
-        result = create_keyword_plan(self.store, project_root=self.project_root, job_id=job_id)
-        return self._keyword_plan_response(result)
-
     def save_keyword_plan(self, context: ToolContext, args: dict[str, Any]) -> dict[str, Any]:
         job_id = args["job_id"]
         if context.assigned_job_ids and job_id not in context.assigned_job_ids:
@@ -476,20 +429,6 @@ class Phase04Services:
             "model": result.plan["model"],
         }
 
-    def get_artifact(self, context: ToolContext, args: dict[str, Any]) -> dict[str, Any]:
-        artifact = self._artifact(args["artifact_id"], context)
-        return {
-            "artifact": {
-                "id": artifact["id"],
-                "version": artifact["version"],
-                "sha256": artifact["sha256"],
-                "content_type": artifact["content_type"],
-                "size_bytes": artifact["size_bytes"],
-                "owner": artifact["owner"],
-                "created_at": artifact["created_at"],
-            }
-        }
-
     def create_question(self, context: ToolContext, args: dict[str, Any]) -> dict[str, Any]:
         question_id = self.onboarding.create_pending_question(
             application_id=context.application_id,
@@ -510,16 +449,6 @@ class Phase04Services:
         if row["application_id"] and context.application_id and row["application_id"] != context.application_id:
             raise MCPError("authorization_failed", "question is outside this application scope")
         return {"question": dict(row)}
-
-    def submit_package_for_review(self, context: ToolContext, args: dict[str, Any]) -> dict[str, Any]:
-        self._require_application_scope(context, args["application_id"])
-        review_id = self.onboarding.create_pending_question(
-            application_id=args["application_id"],
-            field_context={"review_package_hash": sha256_text(stable_json(args["package"]))},
-            reason="application package requires user review",
-            suggested_reuse_scope=None,
-        )
-        return {"review_id": review_id, "status": "needs_review"}
 
     def save_stage_result(self, context: ToolContext, args: dict[str, Any]) -> dict[str, Any]:
         result_id = new_id("stage")
@@ -559,38 +488,6 @@ class Phase04Services:
             }
         }
 
-    def inspect_form(self, context: ToolContext, args: dict[str, Any]) -> dict[str, Any]:
-        if not str(args["form_id"]).startswith("synthetic_"):
-            raise MCPError("unsupported_form", "only synthetic forms are supported in Phase 04")
-        return {
-            "fields": [
-                {"id": "email", "semantic_key": "contact.email", "required": True, "type": "email"},
-                {"id": "resume", "semantic_key": "document.resume", "required": True, "type": "file"},
-            ],
-            "submit_available": False,
-        }
-
-    def fill_fields(self, context: ToolContext, args: dict[str, Any]) -> dict[str, Any]:
-        if not str(args["form_id"]).startswith("synthetic_"):
-            raise MCPError("unsupported_form", "only synthetic forms are supported in Phase 04")
-        return {"draft_id": new_id("draft"), "status": "filled_local_draft", "answer_count": len(args["answers"])}
-
-    def attach_resume(self, context: ToolContext, args: dict[str, Any]) -> dict[str, Any]:
-        artifact = self._artifact(args["artifact_id"], context)
-        return {"attachment": {"draft_id": args["draft_id"], "artifact_id": artifact["id"], "sha256": artifact["sha256"]}}
-
-    def read_back(self, context: ToolContext, args: dict[str, Any]) -> dict[str, Any]:
-        return {"draft": {"draft_id": args["draft_id"], "status": "local_draft_only"}}
-
-    def request_submit(self, context: ToolContext, args: dict[str, Any]) -> dict[str, Any]:
-        raise MCPError("external_action_disabled", "live submission is unavailable until Phase 11")
-
-    def get_confirmation(self, context: ToolContext, args: dict[str, Any]) -> dict[str, Any]:
-        return {"status": "no_live_attempts_in_phase04", "attempt_id": args["attempt_id"]}
-
-    def reconcile_attempt(self, context: ToolContext, args: dict[str, Any]) -> dict[str, Any]:
-        return {"status": "manual_review_required", "attempt_id": args["attempt_id"], "retry_safe": False}
-
     def _confirmed_facts(self, *, limit: int) -> list[Any]:
         with self.store.connect() as db:
             return db.execute(
@@ -620,23 +517,6 @@ class Phase04Services:
             "live_external_actions": source["live_external_actions"],
         }
 
-    def _artifact(self, artifact_id: str, context: ToolContext) -> dict[str, Any]:
-        if context.assigned_artifact_ids and artifact_id not in context.assigned_artifact_ids:
-            raise MCPError("authorization_failed", "artifact is outside this task scope")
-        with self.store.connect() as db:
-            row = db.execute(
-                "SELECT * FROM artifacts WHERE id = ? ORDER BY version DESC LIMIT 1",
-                (artifact_id,),
-            ).fetchone()
-        if row is None:
-            raise MCPError("missing_fact", "unknown artifact id")
-        return dict(row)
-
-    def _require_application_scope(self, context: ToolContext, application_id: str) -> None:
-        if context.application_id is not None and application_id != context.application_id:
-            raise MCPError("authorization_failed", "application is outside this task scope")
-
-
 def build_phase04_registry(store: SpaceStore, project_root: Path) -> ToolRegistry:
     registry = ToolRegistry()
     Phase04Services(store, project_root).register_all(registry)
@@ -646,7 +526,10 @@ def build_phase04_registry(store: SpaceStore, project_root: Path) -> ToolRegistr
 def validate_phase04_tool_coverage(packages: tuple[AgentPackage, ...], registry: ToolRegistry) -> None:
     implemented = set(registry.schemas) if registry.schemas else set(PHASE04_TOOL_NAMES)
     for package in packages:
-        missing = set(ALLOWED_TOOLS[package.agent_id]) - implemented
+        # Some Codex-facing packages own a dedicated local MCP server rather than
+        # dispatching through the shared Phase 04 registry.
+        phase04_tools = set(ALLOWED_TOOLS[package.agent_id]) & set(PHASE04_TOOL_NAMES)
+        missing = phase04_tools - implemented
         if missing:
             raise ConfigError(f"{package.agent_id} has unimplemented Phase 04 tools: {sorted(missing)}")
 

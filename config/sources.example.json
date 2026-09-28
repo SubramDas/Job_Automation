@@ -15,6 +15,20 @@
       "notes": "Universal MVP fallback. User supplies the description and source URL."
     },
     {
+      "id": "fetch_mcp_url_import",
+      "name": "Fetch MCP single job URL import",
+      "status": "read_only_import",
+      "capabilities": [
+        "description_retrieval",
+        "destination_resolution",
+        "import_only",
+        "manual_handoff"
+      ],
+      "requires_account": false,
+      "live_external_actions": false,
+      "notes": "Read-only one-off import for public job URLs after Codex retrieves page markdown/text through the configured Fetch MCP. No portal search, login, browser automation, form filling, or submission."
+    },
+    {
       "id": "fixture_remote_jobs",
       "name": "Fixture remote tech jobs",
       "status": "synthetic_enabled",

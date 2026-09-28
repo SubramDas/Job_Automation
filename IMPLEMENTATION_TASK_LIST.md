@@ -1,19 +1,17 @@
-# Job application pipeline: phased implementation task list
+# Job discovery and keyword planning: phased implementation task list
 
-Status: phased backlog. Phases 00-03, 05, 06, and 07 are complete for the local synthetic
-manual-import dry-run scope. Phase 04 has a restricted in-process foundation, while live
-providers, source automation, scheduling, and submission remain disabled.
+Status: phases 00-03 and 05-07 are implemented to varying degrees; Phase 04 remains partial. Phase 08's Agent C conversion and suggestion workflow is implemented with a provider/privacy gate; its model workflow remains disabled pending explicit provider approval. Application form preparation, browser automation, uploads, and submission are excluded.
 Prepared: 2026-09-23.
 
 Source documents: [project instructions](./AGENTS.md) and [pipeline plan](./JOB_APPLICATION_PIPELINE_PLAN.md).
 
-This document turns the existing design into actionable tasks and adds the requested per-agent instruction files, skills, MCP tools, and different model assignments. It does not create or activate those agents, tools, skills, accounts, or schedules. Reviewing this backlog does not itself authorize external applications.
+This document records the scoped implementation backlog for Agents A and B, the proposed Agent C workflow, and shared local services. It does not authorize account connections, employer contact, recurring runs, or external actions.
 
 ## How to use this checklist
 
 Execute phases in order unless their dependency notes explicitly permit independent work. Within each phase, numbered task IDs show the intended sequence. Mark a task complete only when its artifact or observable behavior exists and its relevant checks pass. Record completion evidence beside its ID in the implementation PR or task tracker.
 
-Owners identify responsibility: **User** supplies facts and preferences; **Builder** implements the software; **A/B/C** identify the runtime component being built; **Core** means deterministic application services. Agent labels do not mean the agent already exists or will independently implement itself.
+Owners identify responsibility: **User** supplies facts and preferences; **Builder** implements the software; **A/B** identify runtime components; **Core** means deterministic shared services.
 
 No time estimate is promised before source feasibility and pilot results are known. Unsupported sources can reach a useful manual-handoff milestone without blocking supported sources.
 
@@ -23,23 +21,23 @@ No time estimate is promised before source feasibility and pilot results are kno
 | --- | --- | --- | --- | --- |
 | Agent A — Keyword specialist | LLM keyword extraction, priority ranking, artifact persistence | `gpt-5.4` | User clarification for ambiguous job text; bounded schema repair after validation | Read assigned job snapshots; create job-linked keyword-plan artifacts |
 | Agent B — Discovery specialist | Search planning, job extraction, requirement classification, match explanation | `gpt-5.4-nano` | `gpt-5.4-mini` for ambiguous extraction/matching; unresolved cases to review | Read search preferences and minimal career summary; save job records |
-| Agent C — Application specialist | Interpret supported forms, map answers, prepare submission requests | `gpt-5.4-mini` | `gpt-5.4` for complex interpretation; unknown personal facts still go to user | Access application-scoped facts and guarded form tools |
+| Agent C — Resume keyword suggestions | Maintain one active TeX/Markdown pair; convert each new source once; compare resume with saved keyword plan; propose exactly three resume-pointer-based lines for every keyword | Active Codex session, gated by explicit personal-data provider approval | Hypothetical claims are allowed; user verifies before adding to source resume | Read the singleton private resume and job-linked keyword plan; save job-linked suggestion artifact; never edit source resume |
 | Orchestrator | State transitions, dispatch, scheduling, budgets, recovery | No model required | Deterministic errors and review queue | Control workflow; cannot create user authorization |
 | Space service | Profile, answer memory, versioning, reuse checks | No model required | Semantic retrieval may be added later; exact matching first | Accept user-confirmed facts through authenticated operations |
 | Validation service | Schema, factual, document, policy, and submission checks | Deterministic checks first; isolated `gpt-5.4` critique for language claims when useful | Unresolved findings to user | Return findings; cannot submit or rewrite evidence |
 
-These are proposed application API model IDs, not a change to the coding assistant in this workspace. The three agents have different default models. Escalation may share a stronger model, but preserves each agent's tools and scope. Three configured agents can run inside one application process; separate always-on services are unnecessary for the MVP.
+These are proposed application API model IDs, not a change to the coding assistant in this workspace. Agent model assignments are configuration proposals. The two configured agents can run inside one application process; separate always-on services are unnecessary for the MVP.
 
 Model choices are engineering proposals, subject to account access and task-specific evaluation. Official documentation describes [GPT-5.4](https://developers.openai.com/api/docs/models/gpt-5.4) for complex professional work, [GPT-5.4 nano](https://developers.openai.com/api/docs/models/gpt-5.4-nano) for tasks including extraction and classification, and [GPT-5.4 mini](https://developers.openai.com/api/docs/models/gpt-5.4-mini) as a more efficient model with tool-oriented capabilities. Checked 2026-09-23. These assignments are not claims that this combination has already passed our evaluations or is the newest available lineup.
 
 ### Model routing rules
 
 - Use code for parsing known formats, calculations, policy enforcement, exact lookup, duplicate checks, and state changes.
-- Evaluate lighter models against labeled examples before allowing them to progress applications automatically.
+- Evaluate lighter models against labeled examples before relying on their suggestions.
 - Escalate when observable validation fails, requirements conflict, or the case is outside the evaluated form/source coverage. A model's self-reported confidence alone is insufficient.
 - Start with a bounded retry/escalation policy: one schema-repair attempt and one stronger-model attempt per stage; configure exact limits after evaluation.
 - A stronger model cannot resolve missing personal facts, grant permission, or override a failed hard constraint.
-- Stop at the configured cost/token/runtime limit; keep the application resumable.
+- Stop at the configured cost/token/runtime limit; keep the current job task resumable.
 - Recheck model availability, capabilities, pricing, and provider data handling during implementation. Pin tested model snapshots where available and record the actual model used.
 
 ## 2. Per-agent reference packages
@@ -69,16 +67,11 @@ agents/
       job-discovery/SKILL.md
       job-extraction/SKILL.md
       job-matching/SKILL.md
-    examples/
-  agent_c_application/
+  agent_c_resume_suggestions/  # implemented Agent C package
     AGENT.md
     AGENTS.md
-    agent.yaml
-    mcp.json
     skills/
-      form-preparation/SKILL.md
-      answer-resolution/SKILL.md
-      submission-reconciliation/SKILL.md
+      resume-keyword-suggestions/SKILL.md
     examples/
 config/
   models.yaml
@@ -90,8 +83,7 @@ app/
   profile/
   discovery/
   matching/
-  tailoring/       # Agent A keyword planning; no resume file editing
-  applications/
+  tailoring/       # Agent A keyword planning; Agent A never reads or edits resumes
   validation/
   review/
   storage/
@@ -124,9 +116,7 @@ Runtime loading order must be explicit: global application invariants, agent ref
 | B | `job-discovery` | Search policy and source capabilities | Search plan, discovered links, provenance |
 | B | `job-extraction` | Original JD/source snapshot | Typed job record, evidence spans, unknown fields |
 | B | `job-matching` | Job record and minimal profile | Hard-filter inputs, explained match, gaps, review reasons |
-| C | `form-preparation` | Destination, approved artifact, form snapshot | Field inventory, answer mapping, filled draft |
-| C | `answer-resolution` | Question and application context | Valid cached answer reference or pending user question |
-| C | `submission-reconciliation` | Validated package, policy, attempt state | Guarded submit request and receipt, or unresolved outcome |
+| C | `resume-keyword-suggestions` | The single active resume/Markdown pair and a saved job's keyword-plan artifact | Exactly three pointer-anchored line suggestions for each keyword, preserving project boundaries and pointer-line length |
 
 Every skill needs a focused `SKILL.md`, trigger conditions, procedural steps, tool prerequisites, input/output examples, known failure paths, and evaluation fixtures. Shared schemas and policies may be referenced rather than copied. Skills cannot expand an agent's MCP permissions.
 
@@ -136,16 +126,12 @@ The names below are **proposed project tool contracts to build**, not claims tha
 
 | Proposed MCP server | Proposed tools | Agent access | Enforcement |
 | --- | --- | --- | --- |
-| `space` | `get_career_evidence`, `get_search_profile`, `get_application_facts`, `resolve_answer` | A: career evidence; B: minimal search profile; C: application facts/answers | Field- and application-scoped reads; no unrestricted database queries |
-| `jobs` | `search_sources`, `fetch_description`, `save_job`, `get_job`, `evaluate_match` | B: discovery/write/evaluation; A/C: assigned job read | Source allowlist; deterministic filtering; immutable snapshots |
-| `documents` | `get_artifact` | C: assigned final artifact metadata if the user supplies a resume manually | Artifact IDs and approved directories; no arbitrary file access |
-| `review` | `create_question`, `get_question_status`, `submit_package_for_review` | A/B/C: contextual questions; C: application review package | Questions go to the user's queue; agents cannot impersonate the user |
-| `applications` | `inspect_form`, `fill_fields`, `attach_resume`, `read_back`, `request_submit`, `get_confirmation`, `reconcile_attempt` | C only; submit tool unavailable in draft mode | Narrow adapter operations and server-side policy checks |
-| `workflow` | `save_stage_result`, `save_checkpoint`, `get_assigned_task` | A/B/C: own assignment only | Agents return results; Core validates and advances state |
+| `space` | `get_career_evidence`, `get_search_profile`, `resolve_answer` | A: assigned evidence; B: minimal search profile | Field-scoped reads; no unrestricted database queries |
+| `jobs` | `search_sources`, `fetch_description`, `save_job`, `get_job`, `evaluate_match`, `save_keyword_plan` | B: discovery/write/evaluation; A: assigned job read and keyword-plan write | Source allowlist; deterministic filtering; immutable snapshots |
+| `review` | `create_question`, `get_question_status` | A/B: contextual questions | Questions go to the user's queue; agents cannot impersonate the user |
+| `workflow` | `save_stage_result`, `save_checkpoint`, `get_assigned_task` | A/B: own assignment only | Core validates and advances state |
 
-The authenticated user interface commits confirmed facts and grants/revokes approval through separate endpoints. Agents can propose corrections or questions; they cannot call an endpoint that confirms facts as though the user supplied them.
-
-The application server owns browser sessions internally. Avoid exposing generic browser JavaScript, arbitrary navigation, shell access, or raw SQL to the runtime agents. Even `fill_fields` can have external effects on a site with autosave: define draft mode using synthetic/local forms, and treat production draft saves or uploads as authorized external actions in the pilot.
+The authenticated user workflow commits confirmed facts. Agents can raise ambiguity for review but cannot confirm facts on the user's behalf.
 
 MCP implementation must distinguish local transport through an SDK/client from provider-hosted remote MCP. A local process is not automatically reachable by a hosted model API. Select the transport in Phase 1 and document authentication, tool filtering, and approval behavior against current [official MCP integration guidance](https://developers.openai.com/api/docs/guides/tools-connectors-mcp).
 
@@ -155,22 +141,13 @@ MCP implementation must distinguish local transport through an SDK/client from p
 | --- | --- | --- |
 | 00 | Approved scope and measurable quality goals | User review |
 | 01 | Repository, architecture, configuration, and contracts | 00 |
-| 02 | Three agent reference/skill/configuration packages | 01 |
-| 03 | Space, evidence ingestion, onboarding | 01; agent integration uses 02 |
+| 02 | Agent A/B instruction, skill, and configuration packages | 01 |
+| 03 | Space, evidence ingestion, onboarding | 01 |
 | 04 | Restricted MCP services and model runtime | 02, 03 |
-| 05 | Agent B manual import and matching | 04 |
-| 05E | Agent B portal discovery run from resume/Space/preferences | 05; source feasibility updates |
-| 05F | Human-readable Agent B job review workspace | 05E |
-| 06 | Agent A job-description keyword planning | 05E; benefits from 05F |
-| 07 | Answer memory and question workflow | 03, 04; can proceed alongside 05–06 |
-| 08 | Agent C synthetic-form draft preparation | 06, 07 |
-| 09 | Complete draft workflow and review interface | 05E–08 |
-| 10 | One permitted live discovery/application adapter | 09; feasibility research can start in 01 |
-| 11 | Guarded submission and reconciliation | 10 |
-| 12 | Evaluation, recovery, and security release checks | 11; checks also accompany earlier phases |
-| 13 | Controlled real pilot | 12 and user-authorized pilot scope |
-| 14 | Daily scheduling and optional autonomous submissions | 13 |
-| 15 | Expansion, maintenance, and measured improvement | 14 |
+| 05–05G | Agent B import, discovery, matching, review workspace, and URL fetch | 04; source feasibility |
+| 06 | Agent A job-description keyword planning | 05; benefits from 05F/05G |
+| 07 | Reusable-answer metadata and question primitives in Space | 03, 04 |
+| 08 | Agent C private resume conversion cache and project-scoped keyword suggestions | 06; private storage and model data-sharing decisions |
 
 Dependency overlap describes future implementation options; it is not an instruction to launch development sub-agents now.
 
@@ -217,12 +194,12 @@ Owner: Builder + Core. Deliverables: project skeleton, decision records, schemas
 
 Exit check: a clean development environment can validate configuration and contracts without real credentials or personal data.
 
-## Phase 02 — Create each agent's instructions, skills, and configuration
+## Phase 02 — Create the A/B instruction, skill, and configuration packages
 
-Owner: Builder. Deliverable: three separately loadable agent packages.
+Owner: Builder. Deliverable: two separately loadable agent packages.
 
 - [x] **P02-01** Define the runtime instruction loader and precedence rules from Section 2; reject path traversal and unapproved instruction locations. Evidence: `app/core/agents.py`, `tests/test_config_validation.py`.
-- [x] **P02-02** Create `agents/agent_a_resume/AGENT.md` with evidence restrictions, output artifacts, revision limits, and A-to-C handoff rules. Evidence: `agents/agent_a_resume/AGENT.md`.
+- [x] **P02-02** Create `agents/agent_a_resume/AGENT.md` with evidence restrictions, output artifacts, revision limits, and job-review handoff details. Evidence: `agents/agent_a_resume/AGENT.md`.
 - [x] **P02-03** Create A's `keyword-evidence/SKILL.md` with supported/partial/missing/unclear classifications and conflict examples. Evidence: `agents/agent_a_resume/skills/keyword-evidence/SKILL.md`.
 - [x] **P02-04** Create A's `keyword-planning/SKILL.md` with extraction, ranking, terminology, and policy rules. Evidence: `agents/agent_a_resume/skills/keyword-planning/SKILL.md`.
 - [x] **P02-05** Create A's `keyword-plan-review/SKILL.md` with schema, policy, and job-link checks. Evidence: `agents/agent_a_resume/skills/keyword-plan-review/SKILL.md`.
@@ -232,21 +209,16 @@ Owner: Builder. Deliverable: three separately loadable agent packages.
 - [x] **P02-09** Create B's `job-extraction/SKILL.md` with field definitions, evidence spans, required/preferred distinctions, and ambiguous examples. Evidence: `agents/agent_b_discovery/skills/job-extraction/SKILL.md`.
 - [x] **P02-10** Create B's `job-matching/SKILL.md` with hard constraints, weighted preferences, coverage, and review routing. Evidence: `agents/agent_b_discovery/skills/job-matching/SKILL.md`.
 - [x] **P02-11** Create B's `agent.yaml` and `mcp.json` using the nano default, mini escalation, and discovery-only external access. Evidence: `agents/agent_b_discovery/agent.yaml`, `agents/agent_b_discovery/mcp.json`.
-- [x] **P02-12** Create `agents/agent_c_application/AGENT.md` with form handling, question scope, package validation, and submission/recovery rules. Evidence: `agents/agent_c_application/AGENT.md`.
-- [x] **P02-13** Create C's `form-preparation/SKILL.md` with labels, conditional fields, uploads, read-back, and unsupported-control handling. Evidence: `agents/agent_c_application/skills/form-preparation/SKILL.md`.
-- [x] **P02-14** Create C's `answer-resolution/SKILL.md` with exact reuse rules, stale/conflicting information, and batched user questions. Evidence: `agents/agent_c_application/skills/answer-resolution/SKILL.md`.
-- [x] **P02-15** Create C's `submission-reconciliation/SKILL.md` with preflight, concrete authorization, confirmation evidence, and ambiguous outcomes. Evidence: `agents/agent_c_application/skills/submission-reconciliation/SKILL.md`.
-- [x] **P02-16** Create C's `agent.yaml` and `mcp.json` using the mini default, stronger interpretation fallback, and draft-mode tool restrictions. Evidence: `agents/agent_c_application/agent.yaml`, `agents/agent_c_application/mcp.json`.
 - [x] **P02-17** Create each package's contributor `AGENTS.md`, pointing to its canonical runtime reference and relevant shared contracts. Evidence: each `agents/*/AGENTS.md`.
 - [x] **P02-18** Add positive, negative, and adversarial examples to every skill; use fictional candidate data. Evidence: every Phase 02 `SKILL.md`.
 - [x] **P02-19** Add a manifest validator checking instruction/skill paths, tool existence, per-agent scope, model configuration, and conflicting rules. Evidence: `app/core/agents.py`, `tests/test_config_validation.py`.
 - [x] **P02-20** Record instruction/skill/configuration hashes on each agent invocation and verify that agents load only their assigned package. Evidence: `AgentPackage.file_hashes` in `app/core/agents.py`; package path and scope tests in `tests/test_config_validation.py`.
 
-Exit check: A, B, and C each have their own reference file, three skills, model configuration, and restricted MCP manifest. No package gains permissions merely by editing prompt text.
+Exit check: A and B each have their own reference file, their assigned skills, model configuration, and restricted MCP manifest. No package gains permissions merely by editing prompt text.
 
 ## Phase 03 — Build Space and onboarding
 
-Owner: Builder + Core; User confirms facts. Deliverable: private, versioned profile and application store.
+Owner: Builder + Core; User confirms facts. Deliverable: private, versioned profile and profile and job store.
 
 - [x] **P03-01** Implement the MVP relational schema and versioned migrations; include job/application uniqueness constraints. Evidence: `app/storage/space.py`, `tests/test_space_phase03.py`.
 - [x] **P03-02** Implement a private artifact store with opaque IDs, hashes, content type, size, owner, and immutable versions. Evidence: `ArtifactStore` in `app/storage/space.py`, synthetic artifact tests.
@@ -273,21 +245,19 @@ Owner: Builder + Core. Deliverable: isolated agent runtime with observable, rest
 - [ ] **P04-01** Define tool input/output schemas for every Section 3 contract, including resource IDs, error types, limits, and mutation behavior.
 - [ ] **P04-02** Implement the Space MCP read views and answer lookup, minimizing fields for each agent's role.
 - [ ] **P04-03** Implement the jobs MCP interface with a manual-import adapter first; stub unimplemented live capabilities with explicit unsupported responses.
-- [ ] **P04-04** Implement the documents MCP interface over controlled parsers and approved artifact IDs.
 - [ ] **P04-05** Implement review and workflow MCP interfaces with task-bound writes and user-question routing.
-- [ ] **P04-06** Implement an applications MCP synthetic adapter; keep live submission unavailable until Phase 11.
-- [ ] **P04-07** Enforce per-agent identity, allowlists, application scope, and operation policy inside each server, including direct-call attempts.
-- [ ] **P04-08** Keep credentials and browser sessions inside the appropriate service; exclude them from model-visible tool results.
+- [ ] **P04-07** Enforce per-agent identity, tool allowlists, assigned-job/artifact scope, and operation policy inside each server, including direct-call attempts.
+- [ ] **P04-08** Keep credentials and tokens inside the appropriate service; exclude them from model-visible tool results.
 - [ ] **P04-09** Apply tool deadlines, bounded payload sizes, pagination, cancellation, and sanitized error handling.
 - [ ] **P04-10** Implement model selection by agent/stage with supported settings, output schemas, token limits, and recorded model versions.
 - [ ] **P04-11** Add bounded schema repair, escalation rules, provider outage handling, and a stop/review result when no qualified route is available.
 - [ ] **P04-12** Track token usage, configured current prices, latency, and tool calls; enforce cost budgets before expensive retries.
 - [ ] **P04-13** Add cache keys including relevant input hashes and instruction/model/policy versions; isolate private candidate data.
-- [ ] **P04-14** Test denied operations: B reading salary/contact details unnecessarily, A invoking submission, C editing evidence, and any agent approving itself.
+- [ ] **P04-14** Test denied operations: B reading unnecessary private facts, A writing candidate evidence, and any agent confirming facts on the user's behalf.
 - [ ] **P04-15** Test instruction injection through job text and tool output; verify it cannot expand data access or change policy.
 - [ ] **P04-16** Run end-to-end synthetic calls with each agent's real manifest, proving that its skills and MCP tools load correctly.
 
-Exit check: all three agents can perform a narrow synthetic task with their assigned model and tools; unauthorized calls fail server-side.
+Exit check: both agents can perform narrow synthetic tasks with their assigned tools; unauthorized calls fail server-side.
 
 ## Phase 05 — Build Agent B: job ingestion and matching
 
@@ -321,14 +291,14 @@ captured descriptions, match decisions, and reasons.
 
 This phase exists because the user's desired Agent B milestone is not only manual import:
 the user wants to run Agent B and receive jobs discovered from multiple portals. Discovery
-permission remains separate from application/submission permission. A portal can be useful
+permission remains separate from account or application activity permission. A portal can be useful
 through an official API, feed, alert import, user-export/import, search-result handoff, or
 manual import even when website automation is not permitted. Do not implement CAPTCHA
 bypass, stealth scraping, account-limit evasion, or unsupported website automation.
 
 - [x] **P05E-01** Confirm the exact initial portal list for discovery review. Start with the user's named candidates and keep each portal separately configurable. Initial enabled live source: JobsPipe API. Enabled no-key public source: Jobicy. Registered but disabled pending local setup and per-site permission: self-hosted `jobspy-mcp-server`. Excluded by user choice for now: Adzuna and USAJOBS. LinkedIn/Naukri remain manual or pending permission review.
 - [x] **P05E-02** Recheck current official terms, robots/API documentation where applicable, account permissions, rate limits, and available export/feed/alert options for every selected portal. Record inspection date, source URL, permitted operations, authentication needs, and uncertainty in `docs/decisions/source-feasibility-*.md`. Evidence: 2026-09-24 review for Jobicy, Remotive, Adzuna, USAJOBS, and candidate MCP backends in `docs/decisions/source-feasibility-2026-09-23.md`; LinkedIn/Naukri remain restricted/pending.
-- [x] **P05E-03** Split each portal's capability flags into discovery search, result-link retrieval, description retrieval, canonical employer-destination resolution, login requirement, draft/application support, and manual handoff. A source with unsupported description retrieval must still return links plus a clear manual-import path. Evidence: per-source `capabilities`, `requires_account`, `live_external_actions`, `allowed_hosts`, local endpoint, and manual handoff notes in `config/sources.example.json`.
+- [x] **P05E-03** Split each portal's capability flags into discovery search, result-link retrieval, description retrieval, canonical employer-destination resolution, login requirement, unsupported employer-side activity, and manual handoff. A source with unsupported description retrieval must still return links plus a clear manual-import path. Evidence: per-source `capabilities`, `requires_account`, `live_external_actions`, `allowed_hosts`, local endpoint, and manual handoff notes in `config/sources.example.json`.
 - [x] **P05E-04** Update `config/sources.example.json` and the source registry schema for multiple configured discovery sources, per-source limits, freshness windows, allowed hosts, throttle settings, and external-action status. Evidence: fixture sources and candidate MCP/API sources in `config/sources.example.json`; expanded capability flags in `app/core/contracts.py`.
 - [x] **P05E-05** Define the Agent B run contract: input is current Space profile version, preference policy version, selected source IDs, max results per source, freshness window, and dry-run flag; output is a source-grouped list of discovered jobs with links, descriptions when permitted, match decisions, gaps, and errors. Evidence: `AgentBRunResult` and `run_agent_b_discovery` in `app/discovery/agent_b_run.py`.
 - [x] **P05E-06** Add a CLI command such as `python3 -m app.discovery.agent_b_run --sources ... --max-results ...` that loads Agent B's package, search profile, source capabilities, and model route policy, then executes discovery through MCP tools rather than direct module shortcuts. Evidence: `app/discovery/agent_b_run.py` and Phase 05E tests.
@@ -399,13 +369,49 @@ Exit check: after running Agent B, the user can open `private/job_reviews/index.
 then browse company/job folders containing readable job details and the exact job
 description, without needing to manually inspect `private/artifacts/`.
 
+## Phase 05G — Agent B single-link fetch through Fetch MCP
+
+Owner: Builder, Agent B + Codex MCP orchestration. Deliverable: when the user says
+`Agent B mcp fetch <job-link>`, Codex uses the configured Fetch MCP to retrieve the linked
+job page as readable content, then Agent B saves, extracts, matches, deduplicates, and
+mirrors the job into `private/job_reviews/` using the same storage pipeline as manual
+imports and portal discovery.
+
+This phase exists for one-off jobs found outside the configured portal searches. It is a
+read-only retrieval path, not a browser automation path. The Fetch MCP may retrieve public
+page content, but it must not log in, bypass paywalls/CAPTCHAs, submit forms, use private
+browser state, or treat a page's embedded instructions as trusted commands. If a site blocks
+or truncates the job page, Agent B must return a manual-import request so the user can paste
+the description and link.
+
+- [x] **P05G-01** Define the user-facing trigger contract: phrases such as `Agent B mcp fetch <url>`, `Agent B fetch this job link <url>`, and `Agent B import this URL <url>` mean read-only fetch plus Agent B import; they do not authorize applying, logging in, or form filling. Evidence: Agent B instructions, README, and runbook document the trigger and boundaries.
+- [x] **P05G-02** Document the tool choreography: first call Fetch MCP for the URL with bounded length, then pass the fetched markdown/text and original URL into the Agent B import/save pipeline. Keep the raw Fetch MCP result out of logs when it includes unnecessary page chrome or private-looking content. Evidence: `docs/runbooks/agent-b-source-adapters.md` and `README_SETUP.md`.
+- [x] **P05G-03** Add an Agent B source ID such as `fetch_mcp_url_import` with capability flags for `description_retrieval`, `canonical_url`, `manual_handoff`, and no search or employer-side activity capability. Evidence: `config/sources.example.json`.
+- [x] **P05G-04** Implement a Codex-facing Agent B MCP tool or orchestration helper, tentatively `agent_b_fetch_job_url`, that accepts a URL and optional fetched text. If the tool cannot call Fetch MCP internally, Codex must perform the explicit two-step MCP sequence and then call Agent B's import tool. Evidence: `agent_b_fetch_job_url` in `app/mcp/codex_agent_b_server.py`; Codex remains responsible for the Fetch MCP call.
+- [x] **P05G-05** Reuse the existing Phase 05 save/extract/match machinery so fetched jobs produce the same database rows, immutable description artifacts, description hash, duplicate signals, match result, warnings, and `job_id` as manual imports. Evidence: `AgentBServer.import_fetched_job_url` delegates to `import_job_text`.
+- [x] **P05G-06** Refresh the Phase 05F review workspace after every successful URL fetch/import so the user can inspect `private/job_reviews/index.md`, `job-details.md`, and `job-description.txt` immediately. Evidence: fetch-import MCP regression test verifies generated review files.
+- [x] **P05G-07** Preserve provenance in saved records: original requested URL, final fetched URL if available, retrieval time, Fetch MCP source ID, content length/truncation status, and any fetch warning such as blocked page, unsupported content type, or no usable description. Evidence: fetch provenance is returned and recorded in a `job_fetch_mcp_imported` audit event.
+- [x] **P05G-08** Add extraction safeguards for fetched web pages: strip obvious navigation/footer noise where possible, keep a readable exact fetched-description artifact, and mark fields unknown rather than hallucinating title, company, location, employment type, or seniority from weak page chrome. Evidence: Fetch MCP raw HTML/JSON-LD normalization extracts JobPosting fields and routes unusable page shells to handoff.
+- [x] **P05G-09** Keep manual fallback first-class: if the fetch result is blocked, JavaScript-only, login-only, CAPTCHA-gated, too short, irrelevant, or mostly page shell, return instructions to paste the JD text plus link and use the existing `agent_b_import_job_text` path. Evidence: `agent_b_fetch_job_url` returns `manual_handoff` for blocked/page-shell content.
+- [x] **P05G-10** Add duplicate/update semantics for repeated single-link imports. Re-fetching the same canonical URL should not create duplicate jobs; if fetched content materially changes, create a new snapshot/version according to existing artifact rules and refresh the readable review copy. Evidence: `agent_b_fetch_job_url` refreshes exact canonical duplicates, creates a new immutable artifact only when content changes, and reuses the current artifact when only parser output changes.
+- [x] **P05G-11** Add host and URL safety checks before fetch/import: require `http` or `https`, reject local/private-network URLs, reject non-job binary downloads by default, cap payload size, and keep redirect/final-host information in provenance. Evidence: `agent_b_fetch_job_url` validates public HTTP(S) URLs, rejects local/private IP targets, and uses existing description payload caps.
+- [x] **P05G-12** Add prompt-injection regression tests where the fetched job page asks Agent B to ignore preferences, read files, submit applications, or alter source permissions; the pipeline must preserve the text but ignore those instructions. Evidence: `test_fetch_job_url_preserves_but_ignores_page_instructions`.
+- [x] **P05G-13** Add tests for successful fetch import, blocked/truncated fetch handoff, canonical URL dedupe, changed-description versioning, review workspace generation, unknown-field routing, and Agent A handoff using the resulting `job_id`. Evidence: MCP tests cover successful fetch import, blocked handoff, URL safety, provenance audit, Workday raw HTML normalization, canonical refresh, same-hash parser refresh, prompt injection, review workspace generation, and the `pending_codex_mcp` Agent A handoff.
+- [x] **P05G-14** Update `README_SETUP.md`, Agent B instructions, and the source-adapter runbook with the normal user command, expected output, storage locations, limitations, and troubleshooting steps for fetch failures. Evidence: README, Agent B instructions, job-discovery skill, and runbook updated.
+- [ ] **P05G-15** Exit demo: fetch one public fixture or safe sample job URL through Fetch MCP, save it through Agent B, show the returned `job_id`, and verify the generated `private/job_reviews/.../job-details.md` and `job-description.txt`.
+
+Exit check: the user can give Agent B a single public job link and receive the same stored
+job record, immutable artifact, match decision, and human-readable review folder that they
+receive from manual import or configured portal discovery. Unsupported pages result in a
+clear paste-the-JD fallback, not unsafe automation.
+
 ## Phase 06 — Build Agent A: job-description keyword planning
 
 Owner: Builder, Agent A + validation service. Deliverable: Codex + MCP generated, ranked keyword plans linked to jobs for manual resume editing. Depends on Phase 05E; Phase 05F improves review usability but does not change Agent A's source-of-truth inputs.
 
 - [x] **P06-01** Remove Agent A's resume-file editing and approval responsibilities from code paths and interfaces. Evidence: Agent A now uses `jobs.get_job` plus `jobs.save_keyword_plan` for the Codex + MCP workflow; obsolete `app/tailoring/resume_tailoring.py` was removed.
 - [x] **P06-02** Define a structured keyword-plan schema with job ID, description hash, model/prompt version, categories, exact terms, synonyms, priority, mandate level, rationale, warnings, and timestamps. Evidence: `app/tailoring/keyword_planning.py` plan payload and `job_keyword_plans` table.
-- [x] **P06-03** Define the Codex prompt/workflow for extracting resume-relevant keywords from the job description only, while treating job text as untrusted data. Evidence: Agent A instructions, `keyword-planning` skill, and fallback `_keyword_prompt` in `app/tailoring/keyword_planning.py`.
+- [x] **P06-03** Define the Codex prompt/workflow for extracting resume-relevant keywords from the job description only, while treating job text as untrusted data. Evidence: Agent A instructions, `keyword-planning` skill, and the Codex-facing Agent A MCP server instructions.
 - [x] **P06-04** Rank extracted terms as `high`, `medium`, or `low` using explicit requirements, preferred qualifications, repetition, role centrality, and recruiter-search value. Evidence: `_score_candidate` priority logic and Phase 06 tests.
 - [x] **P06-05** Mark terms as `mandatory`, `recommended`, or `optional` for the user's manual resume review. Evidence: keyword plan `mandate` and `mandate_counts` fields.
 - [x] **P06-06** Group terms by skills, tools, platforms, responsibilities, domain terms, seniority signals, and ATS-relevant synonyms. Evidence: category inference and synonym fields in `app/tailoring/keyword_planning.py`.
@@ -413,16 +419,16 @@ Owner: Builder, Agent A + validation service. Deliverable: Codex + MCP generated
 - [x] **P06-08** Add policy checks that block hidden-text advice, keyword stuffing, copied requirement paragraphs, unsupported-claim language, or promises of top ranking/interviews/selection. Evidence: validation blocks unsafe outcome claims and tests ignore prompt injection/boilerplate.
 - [x] **P06-09** Persist the keyword plan as a private artifact with a stable hash and redacted audit event. Evidence: `jobs.save_keyword_plan`, `_persist_plan`, `keyword_plan_created` audit event, and artifact owner `agent_a_resume`.
 - [x] **P06-10** Store the keyword-plan artifact reference and summary fields with the corresponding job record in the database. Evidence: `job_keyword_plans` table records artifact ID/hash, description hash, model JSON, counts, warnings, and validation.
-- [x] **P06-11** Provide CLI output that shows the job ID, artifact ID, high/medium/low counts, mandatory terms, warnings, and where the full JSON artifact lives. Evidence: `app/tailoring/agent_a_run.py` summary output.
-- [x] **P06-12** Support JSON output for downstream tooling and manual review. Evidence: `python3 -m app.tailoring.agent_a_run --json` returns status, job ID, artifact ID, and result payload.
-- [x] **P06-13** Add validation tests for normal postings, sparse postings, duplicate terms, prompt injection inside job descriptions, generic legal text, and unsafe ranking claims. Evidence: `tests/test_phase06_agent_a.py` covers normal extraction, injection/boilerplate filtering, persistence, scope, and CLI behavior.
+- [x] **P06-11** Return the job ID, artifact ID, high/medium/low counts, mandatory terms, warnings, and review path through Agent A MCP save results. Evidence: `agent_a_save_keyword_plan` response and MCP tests.
+- [x] **P06-12** Persist structured keyword-plan artifacts for downstream tooling and manual review. Evidence: `jobs.save_keyword_plan` stores the JSON artifact and database row.
+- [x] **P06-13** Add validation tests for MCP-supplied normal postings, duplicate terms, boilerplate filtering, scoped access, and unsafe ranking claims. Evidence: `tests/test_phase06_agent_a.py` covers Codex-MCP persistence, normalization, and scope.
 - [x] **P06-14** Document that resume editing is manual and that Agent A never touches resume files. Evidence: Agent A markdown package, README Agent A section, and pipeline docs now define keyword-only scope.
 
 Exit check: a saved job or pasted job description produces a validated keyword-plan artifact linked to the job record, with high/medium/low ranking and mandatory/recommended/optional labels. No resume file is read, edited, or approved by Agent A.
 
-## Phase 07 — Build reusable answers and user questions
+## Phase 07 — Build reusable answer metadata and user questions
 
-Owner: Builder + Core, integrated with Agent C. Deliverable: context-aware memory and resumable questions.
+Owner: Builder + Core. Deliverable: context-aware reusable-answer metadata and question primitives in Space.
 
 - [x] **P07-01** Define semantic field keys and question context: employer, job, country, employment type, currency, unit, and experience definition. Evidence: `app/profile/answer_memory.py` context requirements and Phase 07 tests.
 - [x] **P07-02** Implement exact scoped answer lookup and deterministic compatibility checks before any semantic suggestion. Evidence: `AnswerMemoryService.resolve_answer`, `OnboardingService.resolve_answer`, and enriched `space.resolve_answer` MCP output.
@@ -441,213 +447,27 @@ Owner: Builder + Core, integrated with Agent C. Deliverable: context-aware memor
 
 Exit check: one answered question can save future work when appropriate; ambiguous or stale facts do not silently enter forms.
 
-## Phase 08 — Build Agent C against synthetic application forms
+## Phase 08 — Agent C: resume conversion and project-scoped keyword suggestions
 
-Owner: Builder, Agent C + Core. Deliverable: correct draft form preparation without live applications.
+Status: implemented, with personal-data model use gated pending the provider/privacy decision recorded in Phase 00. This phase adds manual resume guidance only; the user chooses and applies any edits. Agent A remains keyword-plan-only.
 
-- [ ] **P08-01** Build local synthetic forms representing single-page, multi-step, conditional, and file-upload application flows.
-- [ ] **P08-02** Implement field inspection using labels, accessible names, help text, required status, options, and constraints.
-- [ ] **P08-03** Map form questions to semantic keys and approved answers, retaining each answer's provenance.
-- [ ] **P08-04** Fill text, select, checkbox, date, and repeated work/education sections with explicit type/unit handling.
-- [ ] **P08-05** Reinspect conditional fields after relevant answers and navigation; detect newly required questions.
-- [ ] **P08-06** Route missing, ambiguous, stale, and employer-specific questions through Phase 07.
-- [ ] **P08-07** Attach only the assigned validated artifact; check hash, extension, size, and upload result.
-- [ ] **P08-08** Read back entered values and compare them with the approved answer snapshot, including formatted numbers and dates.
-- [ ] **P08-09** Detect validation messages, lost field values, session expiry, and unsupported controls; save a recoverable checkpoint.
-- [ ] **P08-10** Add screenshot/visual interpretation only where DOM/structured inspection is insufficient and the adapter can constrain actions.
-- [ ] **P08-11** Evaluate mini on the synthetic form suite and stronger-model escalation on genuinely difficult interpretation cases.
-- [ ] **P08-12** Export a complete application preview containing destination, resume version, answers, omissions, unresolved items, and form state.
-- [ ] **P08-13** Make dry-run mode incapable of reaching production submission/upload endpoints; test clicks, Enter keys, navigation, and autosave side effects.
-- [ ] **P08-14** Verify that unsupported forms produce an understandable manual handoff containing the prepared materials.
-- [ ] **P08-15** Test resumption after a user answer, process restart, and a changed conditional form without losing or misapplying data.
+Owner: Builder, Agent C + Core validation. Deliverable: a private, reusable Markdown conversion and a job-linked artifact with exactly three resume-pointer-based line suggestions for every saved Agent A keyword. Suggestions may be hypothetical; the user verifies them before applying any edits.
 
-Exit check: C accurately prepares representative synthetic applications, asks only necessary questions, and cannot submit externally in dry runs.
+- [x] **P08-01** Define explicit private intake at `private/inputs/resume.tex`; preserve the source byte-for-byte and exclude source/conversion from version control and ordinary job artifacts. Evidence: `.gitignore`, `app/profile/resume_conversion.py`.
+- [x] **P08-02** Implement a version-checked session-model TeX-to-Markdown conversion path that preserves source claims and project boundaries; retain a warned standard-library fallback. Evidence: `agent_c_import_resume`, `agent_c_save_resume_markdown`, `save_model_conversion`, and `latex_to_markdown` in `app/profile/resume_suggestions.py`.
+- [x] **P08-03** Keep exactly one active private `.tex` source and one associated `.md`; replace/invalidate them when a new source path is provided, reuse Markdown across jobs, and regenerate the same source only on explicit request. Evidence: `import_resume_source`, `save_model_conversion`, and `private/inputs/resume-manifest.json`.
+- [x] **P08-04** Create a least-privilege Agent C package and dedicated MCP server. It reads only the resume derivative and assigned job plan and cannot write the resume or perform employer-side actions. Evidence: `agents/agent_c_resume_suggestions/`, `app/mcp/codex_agent_c_server.py`.
+- [x] **P08-05** Define a versioned output artifact linking job ID, description hash, keyword plan/hash, resume source/conversion hashes, model/prompt version, validation, and timestamp. Evidence: `schemas/resume_keyword_suggestions.schema.json`, `save_suggestions`, and `agent_c_suggestions` table.
+- [x] **P08-06** Require exactly three distinct suggestions for each keyword. Each names a target section/project and points to exact resume context. Evidence: `validate_suggestions` and Agent C instructions.
+- [x] **P08-07** Enforce project isolation and keep each suggested line within the rendered pointer-line length. Hypothetical content is allowed for user review. Evidence: project/pointer/length checks in `validate_suggestions`.
+- [x] **P08-08** Account for every saved keyword with exactly three concrete suggestions. Evidence: exact keyword coverage and variant-count validation.
+- [x] **P08-09** Keep the result advisory. Agent C never edits `resume.tex` or chooses an option on the user's behalf. Evidence: read-only source path and job review suggestion mirror.
+- [ ] **P08-10** Add redacted synthetic fixtures for multiple projects, overlapping keywords, unsupported requirements, ambiguous TeX structures, conversion cache reuse, explicit regeneration, changed source, and provenance validation.
+- [x] **P08-11** Add a review view under the relevant private job folder with three pointer-anchored line suggestions per keyword; authoritative artifact and hashes remain in Space. Evidence: `resume-keyword-suggestions.md` writer.
+- [x] **P08-12** Document provider gate, private paths, cache invalidation, regeneration, and conversion failure behavior. Evidence: Agent C package and README workflow.
 
-## Phase 09 — Integrate the complete draft workflow and review interface
+Exit check: workflow implementation is complete. End-to-end model suggestion behavior remains unverified and cannot run on real resume data until P08-10 fixtures and the explicit provider/privacy approval are complete. The conversion reuses an unchanged source hash and never modifies the source resume.
 
-Owner: Builder + Core. Deliverable: first usable end-to-end product milestone.
+## Scope boundary
 
-- [ ] **P09-01** Connect B-to-A-to-C dispatch through validated task/result contracts rather than free-form agent conversations.
-- [ ] **P09-02** Implement the normal state path and alternative review, missing-input, rejection, expiry, failure, and manual-handoff states.
-- [ ] **P09-03** Persist stage outputs and checkpoints transactionally; reject stale worker results against updated input versions.
-- [ ] **P09-04** Build a minimal queue view showing job, company, match reasons, current state, and required user action.
-- [ ] **P09-05** Provide job details, evidence gaps, resume preview/download, change report, and field-level answer review.
-- [ ] **P09-06** Allow the user to accept/reject matches, correct facts, request truthful revisions, and resolve questions.
-- [ ] **P09-07** Separate fact corrections from presentation edits so a stylistic revision cannot silently alter career history.
-- [ ] **P09-08** Add authentication/access protection appropriate to the deployment, including protection for state-changing user actions.
-- [ ] **P09-09** Implement concrete package approval records and revocation; keep actual external submission unavailable at this milestone.
-- [ ] **P09-10** Bind review decisions to job, profile, policy, resume, answers, and destination versions; invalidate affected decisions on change.
-- [ ] **P09-11** Add pause, resume, cancel, and per-application retry controls with explicit effects and preserved audit history.
-- [ ] **P09-12** Show cost, failure reason, and manual-handoff materials without exposing technical internals in normal user flows.
-- [ ] **P09-13** Demonstrate pasted JD -> explained match -> ranked keyword plan -> user-supplied resume attachment -> synthetic form preview -> missing questions -> resumed preview.
-- [ ] **P09-14** Collect user feedback on this complete draft workflow before investing in additional integrations.
-
-Exit check: the core value works end to end and is reviewable; every agent's handoff can be traced to versioned inputs.
-
-## Phase 10 — Add one supported live source and form adapter
-
-Owner: Builder + Core, Agent B and Agent C. Deliverable: one explicitly supported live path and useful manual alternatives.
-
-- [ ] **P10-01** Complete the initial source feasibility decision with official documentation, current permissions, account access, and permitted operations.
-- [ ] **P10-02** Keep LinkedIn website automation out of the initial adapter unless a specifically permitted route is established; support imported descriptions and handoff.
-- [ ] **P10-03** Verify Naukri's current official terms/access before enabling automation; retain unknown/manual status if verification is unavailable.
-- [ ] **P10-04** Select one employer/ATS/source flow whose required operations are supported; record separate discovery and application capabilities.
-- [ ] **P10-05** Implement discovery through the permitted interface, including pagination, source limits, freshness, and bounded retrieval.
-- [ ] **P10-06** Validate canonical employer destinations, redirects, scheme/host restrictions, and protection against requests to local/private services.
-- [ ] **P10-07** Connect any needed account through the intended user login flow; protect session storage and provide logout/revocation.
-- [ ] **P10-08** Implement bounded form inspection and adapter-owned fill/upload operations; classify autosave and production draft writes explicitly.
-- [ ] **P10-09** Add adapter-specific checks for required documents, extra questions, conditional controls, and confirmation signals.
-- [ ] **P10-10** Detect expired jobs, authentication challenges, CAPTCHA, changed page structure, and unsupported form versions; hand control to the user where needed.
-- [ ] **P10-11** Add per-source throttling, transient-read retry/backoff, and circuit breakers; never use these as restriction-evasion mechanisms.
-- [ ] **P10-12** Create sanitized adapter fixtures and regression checks from supported patterns without committing real candidate data or cookies.
-- [ ] **P10-13** Expose the adapter capability/status in the UI, including the difference between prepared, draft saved, and submitted.
-- [ ] **P10-14** Document source setup, access renewal, known unsupported cases, and manual completion steps.
-
-Exit check: one real source has a verified capability contract; unsupported sources remain useful through import and manual handoff. Production writes wait for the authorized pilot.
-
-## Phase 11 — Implement guarded submission and outcome reconciliation
-
-Owner: Builder + Core; Agent C requests actions. Deliverable: controlled submission gateway.
-
-- [ ] **P11-01** Implement a preflight validator for job availability, hard constraints, current facts, complete answers, document hash, destination, and unresolved findings.
-- [ ] **P11-02** Implement explicit per-application permission and scoped standing-policy evaluation with expiry, revocation, allowed actions, and excluded cases.
-- [ ] **P11-03** Check source capability and user permission again immediately before the external action; a model cannot assert either as true.
-- [ ] **P11-04** Reserve an application attempt transactionally with a durable identity and single-worker ownership.
-- [ ] **P11-05** Make `request_submit` validate the immutable package and execute only the adapter's bounded submission operation.
-- [ ] **P11-06** Prevent direct browser/tool paths from bypassing the gateway, including keyboard submissions and alternate endpoints.
-- [ ] **P11-07** Recheck the final visible form and attached artifact against the approved package immediately before submission.
-- [ ] **P11-08** Persist the attempt before sending it; record timestamp, package IDs, authorization reference, and destination without secret values.
-- [ ] **P11-09** Recognize reliable confirmation signals and save a receipt/reference or restricted confirmation artifact.
-- [ ] **P11-10** Set `submission_unknown` for timeouts, lost connections, ambiguous redirects, or crashes after an attempt that may have succeeded.
-- [ ] **P11-11** Implement read-only reconciliation through permitted confirmation/history checks; keep uncertain cases pending for user review.
-- [ ] **P11-12** Prohibit automatic resubmission while an earlier attempt is unresolved; require evidence and applicable permission for a later retry.
-- [ ] **P11-13** Detect duplicate applications across runs and sources, including manually completed applications recorded by the user.
-- [ ] **P11-14** Support user-recorded manual submission with its source clearly labeled; do not imply the system independently verified it.
-- [ ] **P11-15** Check cancellation and revoked authorization at the last enforceable point; explain that a completed external submission cannot be undone by pausing locally.
-- [ ] **P11-16** Exercise all submit/reconcile paths against simulated servers before enabling any real application.
-
-Exit check: authorization and duplicate checks are enforced in code; every system-confirmed submission has evidence; uncertain results never trigger blind retries.
-
-## Phase 12 — Run release evaluations and reliability checks
-
-Owner: Builder + User for qualitative review. Deliverable: measured release report and resolved blockers.
-
-Tests accompany their implementation phases; this phase integrates the evidence and exercises failure combinations. Thresholds below are proposals for Phase 00 review, not achieved results.
-
-- [ ] **P12-01** Freeze representative labeled evaluation sets for descriptions, matching, resume claims, questions, and supported forms; separate tuning and held-out cases.
-- [ ] **P12-02** Compare B's nano/default and mini escalation routes on extraction accuracy, shortlist precision/recall, evidence coverage, latency, and total cost.
-- [ ] **P12-03** Evaluate A for unsupported claims, omitted relevant evidence, misleading phrasing, concision, and output consistency with profile facts.
-- [ ] **P12-04** Evaluate C for exact field correctness, conditional questions, document selection, stale answer handling, and unnecessary user interruptions.
-- [ ] **P12-05** Require zero fabricated claims and zero known hard-filter escapes in release fixtures; any observed failure blocks release until addressed.
-- [ ] **P12-06** Require all permission-isolation, duplicate-prevention, and uncertain-submission scenarios to pass; document that passing tests is not a universal guarantee.
-- [ ] **P12-07** Agree on shortlist/extraction targets with the user and report sample size and disagreement examples instead of claiming a universal score.
-- [ ] **P12-08** Test process termination before/after tool calls, stale locks, concurrent runs, duplicate callbacks, and replayed task results.
-- [ ] **P12-09** Test provider errors, malformed model outputs, unavailable models, tool timeouts, budget exhaustion, and exhausted escalation limits.
-- [ ] **P12-10** Test missing/expired login sessions, changed source markup, closed postings, partial uploads, and conditional fields appearing late.
-- [ ] **P12-11** Test malicious JD/page instructions, tool-result injection, path traversal, unsafe redirects, secret leakage, and unauthorized tool calls.
-- [ ] **P12-12** Test profile correction and policy revocation during active preparation and immediately before submission.
-- [ ] **P12-13** Verify text extraction and visual appearance of resume templates with realistic long/short content and non-ASCII names.
-- [ ] **P12-14** Verify profile export/deletion, artifact retention, log redaction, session cleanup, and backup restoration.
-- [ ] **P12-15** Run the complete synthetic pipeline with production-equivalent manifests and dry-run restrictions; inspect the audit trail.
-- [ ] **P12-16** Publish a release report with model/configuration versions, passed checks, known limitations, cost measurements, and unresolved blockers.
-
-Exit check: agreed release checks pass, critical failures are fixed, and the user can review evidence supporting the pilot scope.
-
-## Phase 13 — Conduct a controlled real pilot
-
-Owner: User + Builder + Core. Deliverable: verified real-world performance on a small supported set.
-
-- [ ] **P13-01** Present concrete pilot source, candidate jobs, permissions, budget, maximum applications, and rollback/pause behavior for user approval.
-- [ ] **P13-02** Load the user-confirmed profile and current preferences into the selected deployment; verify private storage and access.
-- [ ] **P13-03** Prepare a small initial batch; a cap of 3–5 applications per day remains a proposal until chosen by the user.
-- [ ] **P13-04** Review every candidate match, keyword plan, user-supplied resume document, destination, document upload, and required answer before pilot submission.
-- [ ] **P13-05** Apply only within the authorized pilot scope and record actual confirmation evidence for each successful attempt.
-- [ ] **P13-06** Resolve missing questions through Space and verify appropriate reuse on subsequent applications.
-- [ ] **P13-07** Inspect any uncertain result and reconcile it before considering further action for that job.
-- [ ] **P13-08** Record time saved, edits needed, irrelevant matches, question burden, failures, confirmed applications, and actual cost.
-- [ ] **P13-09** Fix defects and rerun affected regression checks; return to draft mode if a critical invariant fails.
-- [ ] **P13-10** Confirm that manual completion and skipped jobs are accurately reflected in history.
-- [ ] **P13-11** Review the pilot report with the user and define the sources and conditions eligible for unattended operation.
-
-Exit check: the authorized pilot is complete, results are auditable, and automation scope is supported by observed performance. Successful submission is distinct from recruiter response or hiring outcome.
-
-## Phase 14 — Enable the daily loop and optional autonomous operation
-
-Owner: Builder + Core; User configures standing policy. Deliverable: reliable scheduled operation.
-
-- [ ] **P14-01** Choose and configure a durable scheduler for the deployment; document laptop-off behavior or always-on hosting requirements.
-- [ ] **P14-02** Set the user-approved time/timezone and define missed-run, daylight-saving, and catch-up behavior.
-- [ ] **P14-03** Use durable run locks/leases to prevent overlapping schedules and recover abandoned runs.
-- [ ] **P14-04** Create daily queues for discovery, matching, keyword planning, questions, prepared packages, submissions, and reconciliation.
-- [ ] **P14-05** Prioritize suitable fresh jobs and known deadlines while preserving user-defined preferences and hard constraints.
-- [ ] **P14-06** Apply per-day application caps, per-run/runtime budgets, per-source rate limits, and model spending limits across workers.
-- [ ] **P14-07** Persist and resume unanswered applications without holding workers open or blocking unrelated jobs.
-- [ ] **P14-08** Implement a global kill switch plus per-agent/source pause controls; test their effect during active processing.
-- [ ] **P14-09** Build the daily digest: discovered/shortlisted/prepared/submitted counts, skips, questions, failures, uncertain attempts, and costs.
-- [ ] **P14-10** Configure notifications only to the user's authorized channel with minimal sensitive content and links to the private review view.
-- [ ] **P14-11** Add health checks and notifications for expired authentication, adapter breakage, missed runs, budget exhaustion, and prolonged unresolved attempts.
-- [ ] **P14-12** Implement the user interface for standing permission: scope, expiry, exclusions, limits, and actions always needing review.
-- [ ] **P14-13** Enable automatic submission only for covered, validated applications; reuse valid permission without repetitive approval prompts.
-- [ ] **P14-14** Run scheduled draft-only trials, then a bounded unattended trial under the user's selected policy; inspect restart and overlap behavior.
-- [ ] **P14-15** Document startup/shutdown, recovery, pause/revoke, backup, account reconnection, and manual-handoff procedures.
-
-Exit check: repeated scheduled runs behave predictably, enforce limits, ask only necessary questions, and confirm outcomes accurately.
-
-## Phase 15 — Expand and improve using measured results
-
-Owner: Builder + User. Deliverable: maintained system with evidence-based improvements.
-
-- [ ] **P15-01** Review false-positive and false-negative matches; propose policy adjustments for user acceptance rather than silently changing taste.
-- [ ] **P15-02** Build an adapter expansion list ordered by relevant job coverage, permission clarity, and maintenance cost.
-- [ ] **P15-03** Apply the source feasibility, fixture, permission, submission, and pilot checks to each additional adapter before enabling it.
-- [ ] **P15-04** Add user-authorized email alert imports if useful, with limited mailbox scope, duplicate checks, and untrusted-content handling.
-- [ ] **P15-05** Add separate base resume variants for genuinely different approved role families while maintaining one canonical fact set.
-- [ ] **P15-06** Improve the career evidence bank with user-confirmed achievements and metrics; record recurring skill gaps as learning opportunities.
-- [ ] **P15-07** Add cover letters or optional application documents only if requested and supported by the same evidence/approval controls.
-- [ ] **P15-08** Track recruiter responses, interviews, rejections, and withdrawals through manual updates or explicitly authorized integrations.
-- [ ] **P15-09** Evaluate outcomes cautiously with sample size and confounding factors; do not translate keyword coverage into guaranteed employer ranking.
-- [ ] **P15-10** Optimize prompts, caching, and lighter-model routing only when held-out evaluations preserve quality and permission boundaries.
-- [ ] **P15-11** Re-evaluate models before replacement, maintain a tested rollback route, and update model pricing/capability records.
-- [ ] **P15-12** Monitor MCP dependencies, source changes, permissions, and authentication requirements; disable broken capabilities until repaired.
-- [ ] **P15-13** Periodically audit answer freshness, data retention, backups, logs, and standing permission.
-- [ ] **P15-14** Consider semantic answer search, additional workers, or a larger database only when observed needs justify them; retain exact scope checks.
-- [ ] **P15-15** Keep root instructions, the pipeline plan, each agent package, runbooks, and this task tracker consistent with approved changes.
-
-Exit check: each expansion has its own evidence and maintainable support boundary; lower cost or higher volume never overrides correctness.
-
-## 5. Handoff and completion checklist
-
-| Handoff | Required payload | Block progression when |
-| --- | --- | --- |
-| User -> Space | Confirmed facts, evidence references, preferences, reuse scope | Required facts conflict or lack confirmation |
-| B -> A | Job snapshot/hash, match evidence, policy/profile versions, gaps | Hard filter fails, critical requirement unknown, or duplicate unresolved |
-| A -> C | Job ID, keyword-plan artifact ID/hash, priority summary, warnings | Missing keyword plan, invalid schema, stale job description version |
-| C -> Review | Destination, exact document, field answers/provenance, unresolved items | Form unsupported or required answers unresolved |
-| Review/policy -> Gateway | Package identity and applicable user authorization | Approval stale/revoked, package changed, source capability absent |
-| Gateway -> History | Attempt ID, receipt/evidence, result status | Result ambiguous; retain `submission_unknown` |
-
-The implementation is ready for daily use only when the appropriate Phase 14 exit checks pass. Completing agent prompts or connecting MCP servers alone does not complete the pipeline.
-
-## 6. Milestones for review
-
-| Milestone | Included phases | What you can inspect |
-| --- | --- | --- |
-| M1: Agent foundation | 00–04 | Each agent's files, models, skills, tool permissions, and Space profile |
-| M2: Agent B discovery | 05–05F | Run Agent B and inspect discovered job links, descriptions, shortlist reasoning, source limits, handoff entries, and readable `private/job_reviews/` files |
-| M3: Keyword plan value | 06 | Ranked job-specific keyword plan linked to the job record |
-| M4: Complete draft workflow | 07–09 | Form preview, reusable answers, missing questions, and resumable review |
-| M5: Submission readiness | 10–12 | Supported live adapter, guarded submission, and evaluation report |
-| M6: Real pilot | 13 | Actual confirmation evidence, correction rate, and costs |
-| M7: Daily operation | 14 | Schedule, limits, digest, pause controls, and optional standing permission |
-| M8: Ongoing improvement | 15 | Added coverage and measured quality/cost changes |
-
-## 7. Items to decide during your review
-
-1. Accept the three-agent design and proposed model defaults, or state provider/model preferences.
-2. Confirm the per-agent `AGENT.md`, skills, and MCP package layout.
-3. Choose the first role family, mandatory filters, and source to evaluate.
-4. Choose local versus hosted operation and acceptable model-data sharing.
-5. Set initial budget, review mode, and pilot cap when implementation begins.
-6. Confirm that M3, the complete draft workflow, is the first product milestone before live application submission.
-
-No answers are needed merely to read this document. These decisions will guide the next implementation task you authorize.
+Application preparation, browser automation, uploads, and submission are outside current scope. Further backlog changes should be limited to profile/Space, job discovery and matching, keyword planning, project-scoped manual resume suggestions, local review, and evaluation of those capabilities. Employer application actions remain manual and outside this repository's automation scope.

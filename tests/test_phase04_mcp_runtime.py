@@ -37,8 +37,8 @@ class Phase04MCPRuntimeTests(unittest.TestCase):
             registry = build_phase04_registry(store, Path.cwd())
             response = registry.call(
                 ToolContext(agent_id="agent_a_resume", task_id="task_1"),
-                "applications.request_submit",
-                {"application_id": "app_1"},
+                "shell.exec",
+                {"command": "unsafe"},
             )
             self.assertFalse(response["ok"])
             self.assertEqual(response["error"]["code"], "authorization_failed")
@@ -102,7 +102,7 @@ class Phase04MCPRuntimeTests(unittest.TestCase):
             self.assertFalse(denied["ok"])
             self.assertEqual(denied["error"]["code"], "authorization_failed")
 
-    def test_live_source_and_submission_are_explicitly_disabled(self) -> None:
+    def test_unsupported_live_source_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             store, _ = _space(temp_dir)
             registry = build_phase04_registry(store, Path.cwd())
@@ -111,15 +111,8 @@ class Phase04MCPRuntimeTests(unittest.TestCase):
                 "jobs.fetch_description",
                 {"source_id": "linkedin", "url": "https://linkedin.example.test/job"},
             )
-            submit = registry.call(
-                ToolContext(agent_id="agent_c_application", task_id="task_2", application_id="app_1"),
-                "applications.request_submit",
-                {"application_id": "app_1"},
-            )
             self.assertFalse(live_fetch["ok"])
             self.assertEqual(live_fetch["error"]["code"], "unsupported_source")
-            self.assertFalse(submit["ok"])
-            self.assertEqual(submit["error"]["code"], "external_action_disabled")
 
     def test_model_router_records_routes_without_provider_calls(self) -> None:
         router = ModelRouter(Path.cwd())

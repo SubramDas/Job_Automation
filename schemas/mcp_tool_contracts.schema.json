@@ -18,10 +18,10 @@
       "review_queue",
       "disabled"
     ],
-    "notes": [
-      "Resource IDs are opaque application IDs, job IDs, artifact IDs, question IDs, or attempt IDs.",
+      "notes": [
+      "Resource IDs are opaque job IDs, artifact IDs, or question IDs.",
       "Tool results must not include credentials, cookies, browser sessions, raw salary/contact values outside the agent scope, or arbitrary file paths.",
-      "Live submission and production upload effects are disabled for Phase 04."
+      "Tools are limited to local profile, discovery, matching, and keyword-planning work."
     ]
   }
 }

@@ -13,17 +13,13 @@ Initial typed error codes:
 - `stale_fact`
 - `conflicting_fact`
 - `unsupported_source`
-- `unsupported_form`
 - `authorization_required`
 - `authorization_failed`
 - `rate_limited`
 - `duplicate_risk`
-- `submission_uncertain`
 - `schema_invalid`
 - `config_invalid`
 - `private_data_blocked`
-- `external_action_disabled`
 
-Errors should say whether retry is safe. Submission uncertainty is not retryable until
-reconciliation produces reliable evidence.
-
+Errors should say whether retry is safe. Do not hide source or extraction uncertainty behind
+a generic success result.

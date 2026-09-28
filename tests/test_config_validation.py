@@ -24,23 +24,7 @@ class ConfigValidationTests(unittest.TestCase):
         result = validate_config(Path("config"))
         self.assertIn("models.example.json", result.files_checked)
         self.assertIn("agents/agent_a_resume/AGENT.md", result.files_checked)
-        self.assertIn(
-            "agents/agent_c_application/skills/submission-reconciliation/SKILL.md",
-            result.files_checked,
-        )
-
-    def test_live_submission_is_rejected(self) -> None:
-        with tempfile.TemporaryDirectory() as temp_dir:
-            target = Path(temp_dir)
-            config_target = _copy_project_contracts(target)
-
-            policy_path = config_target / "policies.example.json"
-            policy = json.loads(policy_path.read_text(encoding="utf-8"))
-            policy["submission"]["live_submission_enabled"] = True
-            policy_path.write_text(json.dumps(policy), encoding="utf-8")
-
-            with self.assertRaises(ConfigError):
-                validate_config(config_target)
+        self.assertIn("agents/agent_b_discovery/AGENT.md", result.files_checked)
 
     def test_unknown_source_capability_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -77,7 +61,7 @@ class ConfigValidationTests(unittest.TestCase):
             mcp = json.loads(mcp_path.read_text(encoding="utf-8"))
             mcp["tools"].append(
                 {
-                    "name": "applications.request_submit",
+                    "name": "shell.exec",
                     "scope": "not allowed for resume agent",
                     "external_effect": "review_queue",
                 }

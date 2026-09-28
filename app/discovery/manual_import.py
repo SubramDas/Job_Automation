@@ -83,7 +83,7 @@ class ManualJobImporter:
                     (exact_duplicate["matched_job_id"],),
                 ).fetchone()
                 extraction_row = db.execute(
-                    "SELECT id, extraction_json FROM job_extractions WHERE job_id = ? ORDER BY created_at DESC LIMIT 1",
+                    "SELECT id, extraction_json FROM job_extractions WHERE job_id = ? ORDER BY created_at DESC, rowid DESC LIMIT 1",
                     (exact_duplicate["matched_job_id"],),
                 ).fetchone()
                 db.execute(
@@ -464,13 +464,16 @@ def _find_employment_type(text: str) -> str | None:
 
 
 def _find_experience(text: str) -> dict[str, Any] | None:
-    match = re.search(
-        r"(\d+(?:\.\d+)?)\s*(?:(?:-|–|to)\s*(\d+(?:\.\d+)?))?\+?\s*years?",
-        text,
-        re.I,
+    matches = list(
+        re.finditer(
+            r"(\d+(?:\.\d+)?)\s*(?:(?:-|–|to)\s*(\d+(?:\.\d+)?))?\+?\s*years?",
+            text,
+            re.I,
+        )
     )
-    if not match:
+    if not matches:
         return None
+    match = max(matches, key=lambda item: _experience_match_score(text, item))
     minimum = float(match.group(1))
     maximum = float(match.group(2)) if match.group(2) else None
     return {
@@ -479,6 +482,25 @@ def _find_experience(text: str) -> dict[str, Any] | None:
         "original": match.group(0),
         "ambiguous": maximum is None and "+" not in match.group(0),
     }
+
+
+def _experience_match_score(text: str, match: re.Match[str]) -> int:
+    lower = text.lower()
+    start, end = match.span()
+    window_before = lower[max(0, start - 160) : start]
+    window_after = lower[end : min(len(lower), end + 80)]
+    score = 0
+    if "+" in match.group(0):
+        score += 80
+    if re.search(r"(requirements?|qualifications?|what we need|must have|required skills?)", window_before):
+        score += 60
+    if re.search(r"\bexperience\b", window_before + window_after):
+        score += 35
+    if re.search(r"(company|founded|legacy|history|transforming|more than)$", window_before.strip()):
+        score -= 80
+    if "more than" in window_before[-20:]:
+        score -= 80
+    return score
 
 
 def _extract_section_items(text: str, *, required: bool) -> list[str]:
