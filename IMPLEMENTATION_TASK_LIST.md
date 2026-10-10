@@ -1,6 +1,6 @@
 # Job discovery and keyword planning: phased implementation task list
 
-Status: phases 00-03 and 05-07 are implemented to varying degrees; Phase 04 remains partial. Phase 08's Agent C conversion and suggestion workflow is implemented with a provider/privacy gate; its model workflow remains disabled pending explicit provider approval. Application form preparation, browser automation, uploads, and submission are excluded.
+Status: phases 00-03 and 05-07 are implemented to varying degrees; Phase 04 remains partial. Phase 08's Agent C conversion and suggestion workflow is implemented with separate Codex conversion and Gemini API generation gates. Application form preparation, browser automation, uploads, and submission are excluded.
 Prepared: 2026-09-23.
 
 Source documents: [project instructions](./AGENTS.md) and [pipeline plan](./JOB_APPLICATION_PIPELINE_PLAN.md).
@@ -21,7 +21,7 @@ No time estimate is promised before source feasibility and pilot results are kno
 | --- | --- | --- | --- | --- |
 | Agent A — Keyword specialist | LLM keyword extraction, priority ranking, artifact persistence | `gpt-5.4` | User clarification for ambiguous job text; bounded schema repair after validation | Read assigned job snapshots; create job-linked keyword-plan artifacts |
 | Agent B — Discovery specialist | Search planning, job extraction, requirement classification, match explanation | `gpt-5.4-nano` | `gpt-5.4-mini` for ambiguous extraction/matching; unresolved cases to review | Read search preferences and minimal career summary; save job records |
-| Agent C — Resume keyword suggestions | Maintain one active TeX/Markdown pair; convert each new source once; compare resume with saved keyword plan; propose exactly three resume-pointer-based lines for every keyword | Active Codex session, gated by explicit personal-data provider approval | Hypothetical claims are allowed; user verifies before adding to source resume | Read the singleton private resume and job-linked keyword plan; save job-linked suggestion artifact; never edit source resume |
+| Agent C — Resume keyword suggestions | Maintain one active TeX/Markdown pair; convert each new source once; compare resume with saved keyword plan; propose exactly three resume-pointer-based lines for every keyword | Gemini 3.6 Flash high thinking for line generation; Codex session for initial TeX conversion | One bounded Gemini regeneration after local validation failure; user verifies suggestions before adding to source resume | Read the singleton private resume and job-linked keyword plan; save job-linked suggestion artifact; never edit source resume |
 | Orchestrator | State transitions, dispatch, scheduling, budgets, recovery | No model required | Deterministic errors and review queue | Control workflow; cannot create user authorization |
 | Space service | Profile, answer memory, versioning, reuse checks | No model required | Semantic retrieval may be added later; exact matching first | Accept user-confirmed facts through authenticated operations |
 | Validation service | Schema, factual, document, policy, and submission checks | Deterministic checks first; isolated `gpt-5.4` critique for language claims when useful | Unresolved findings to user | Return findings; cannot submit or rewrite evidence |
@@ -369,10 +369,10 @@ Exit check: after running Agent B, the user can open `private/job_reviews/index.
 then browse company/job folders containing readable job details and the exact job
 description, without needing to manually inspect `private/artifacts/`.
 
-## Phase 05G — Agent B single-link fetch through Fetch MCP
+## Phase 05G — Agent B single-link retrieval
 
 Owner: Builder, Agent B + Codex MCP orchestration. Deliverable: when the user says
-`Agent B mcp fetch <job-link>`, Codex uses the configured Fetch MCP to retrieve the linked
+`Agent B mcp fetch <job-link>`, Codex uses Firecrawl first and Fetch MCP as fallback to retrieve the linked
 job page as readable content, then Agent B saves, extracts, matches, deduplicates, and
 mirrors the job into `private/job_reviews/` using the same storage pipeline as manual
 imports and portal discovery.
@@ -385,9 +385,9 @@ or truncates the job page, Agent B must return a manual-import request so the us
 the description and link.
 
 - [x] **P05G-01** Define the user-facing trigger contract: phrases such as `Agent B mcp fetch <url>`, `Agent B fetch this job link <url>`, and `Agent B import this URL <url>` mean read-only fetch plus Agent B import; they do not authorize applying, logging in, or form filling. Evidence: Agent B instructions, README, and runbook document the trigger and boundaries.
-- [x] **P05G-02** Document the tool choreography: first call Fetch MCP for the URL with bounded length, then pass the fetched markdown/text and original URL into the Agent B import/save pipeline. Keep the raw Fetch MCP result out of logs when it includes unnecessary page chrome or private-looking content. Evidence: `docs/runbooks/agent-b-source-adapters.md` and `README_SETUP.md`.
+- [x] **P05G-02** Document the tool choreography: first call Firecrawl scrape, then Fetch MCP with `raw=true` only if Firecrawl fails or yields unusable content. Check for the full description before importing the selected content and original URL. Keep raw retrieval results out of logs when they include unnecessary page chrome or private-looking content. Evidence: `docs/runbooks/agent-b-source-adapters.md` and `README_SETUP.md`.
 - [x] **P05G-03** Add an Agent B source ID such as `fetch_mcp_url_import` with capability flags for `description_retrieval`, `canonical_url`, `manual_handoff`, and no search or employer-side activity capability. Evidence: `config/sources.example.json`.
-- [x] **P05G-04** Implement a Codex-facing Agent B MCP tool or orchestration helper, tentatively `agent_b_fetch_job_url`, that accepts a URL and optional fetched text. If the tool cannot call Fetch MCP internally, Codex must perform the explicit two-step MCP sequence and then call Agent B's import tool. Evidence: `agent_b_fetch_job_url` in `app/mcp/codex_agent_b_server.py`; Codex remains responsible for the Fetch MCP call.
+- [x] **P05G-04** Implement a Codex-facing Agent B MCP tool or orchestration helper, tentatively `agent_b_fetch_job_url`, that accepts a URL and fetched text. Codex performs the retrieval sequence before calling Agent B's import tool. Evidence: `agent_b_fetch_job_url` in `app/mcp/codex_agent_b_server.py`.
 - [x] **P05G-05** Reuse the existing Phase 05 save/extract/match machinery so fetched jobs produce the same database rows, immutable description artifacts, description hash, duplicate signals, match result, warnings, and `job_id` as manual imports. Evidence: `AgentBServer.import_fetched_job_url` delegates to `import_job_text`.
 - [x] **P05G-06** Refresh the Phase 05F review workspace after every successful URL fetch/import so the user can inspect `private/job_reviews/index.md`, `job-details.md`, and `job-description.txt` immediately. Evidence: fetch-import MCP regression test verifies generated review files.
 - [x] **P05G-07** Preserve provenance in saved records: original requested URL, final fetched URL if available, retrieval time, Fetch MCP source ID, content length/truncation status, and any fetch warning such as blocked page, unsupported content type, or no usable description. Evidence: fetch provenance is returned and recorded in a `job_fetch_mcp_imported` audit event.
@@ -398,7 +398,7 @@ the description and link.
 - [x] **P05G-12** Add prompt-injection regression tests where the fetched job page asks Agent B to ignore preferences, read files, submit applications, or alter source permissions; the pipeline must preserve the text but ignore those instructions. Evidence: `test_fetch_job_url_preserves_but_ignores_page_instructions`.
 - [x] **P05G-13** Add tests for successful fetch import, blocked/truncated fetch handoff, canonical URL dedupe, changed-description versioning, review workspace generation, unknown-field routing, and Agent A handoff using the resulting `job_id`. Evidence: MCP tests cover successful fetch import, blocked handoff, URL safety, provenance audit, Workday raw HTML normalization, canonical refresh, same-hash parser refresh, prompt injection, review workspace generation, and the `pending_codex_mcp` Agent A handoff.
 - [x] **P05G-14** Update `README_SETUP.md`, Agent B instructions, and the source-adapter runbook with the normal user command, expected output, storage locations, limitations, and troubleshooting steps for fetch failures. Evidence: README, Agent B instructions, job-discovery skill, and runbook updated.
-- [ ] **P05G-15** Exit demo: fetch one public fixture or safe sample job URL through Fetch MCP, save it through Agent B, show the returned `job_id`, and verify the generated `private/job_reviews/.../job-details.md` and `job-description.txt`.
+- [ ] **P05G-15** Exit demo: retrieve one public fixture or safe sample job URL through the configured Firecrawl-first path, save it through Agent B, show the returned `job_id`, and verify the generated `private/job_reviews/.../job-details.md` and `job-description.txt`.
 
 Exit check: the user can give Agent B a single public job link and receive the same stored
 job record, immutable artifact, match decision, and human-readable review folder that they
@@ -449,7 +449,7 @@ Exit check: one answered question can save future work when appropriate; ambiguo
 
 ## Phase 08 — Agent C: resume conversion and project-scoped keyword suggestions
 
-Status: implemented, with personal-data model use gated pending the provider/privacy decision recorded in Phase 00. This phase adds manual resume guidance only; the user chooses and applies any edits. Agent A remains keyword-plan-only.
+Status: implemented with separate provider gates for Codex conversion and Gemini API line generation. This phase adds manual resume guidance only; the user chooses and applies any edits. Agent A remains keyword-plan-only.
 
 Owner: Builder, Agent C + Core validation. Deliverable: a private, reusable Markdown conversion and a job-linked artifact with exactly three resume-pointer-based line suggestions for every saved Agent A keyword. Suggestions may be hypothetical; the user verifies them before applying any edits.
 
@@ -465,8 +465,9 @@ Owner: Builder, Agent C + Core validation. Deliverable: a private, reusable Mark
 - [ ] **P08-10** Add redacted synthetic fixtures for multiple projects, overlapping keywords, unsupported requirements, ambiguous TeX structures, conversion cache reuse, explicit regeneration, changed source, and provenance validation.
 - [x] **P08-11** Add a review view under the relevant private job folder with three pointer-anchored line suggestions per keyword; authoritative artifact and hashes remain in Space. Evidence: `resume-keyword-suggestions.md` writer.
 - [x] **P08-12** Document provider gate, private paths, cache invalidation, regeneration, and conversion failure behavior. Evidence: Agent C package and README workflow.
+- [x] **P08-13** Route normal Agent C line generation to Gemini 3.6 Flash at high thinking, use the canonical prompt and saved resume/keyword inputs, enforce a separate Gemini approval, generate one keyword per request with private checkpoints and bounded service-error retries, and validate the complete result before saving. Evidence: `app/profile/gemini_suggestions.py`, `agent_c_generate_suggestions`, and private model configuration.
 
-Exit check: workflow implementation is complete. End-to-end model suggestion behavior remains unverified and cannot run on real resume data until P08-10 fixtures and the explicit provider/privacy approval are complete. The conversion reuses an unchanged source hash and never modifies the source resume.
+Exit check: workflow implementation is complete. The Gemini generation path has not yet been exercised against a live job in this change. The conversion reuses an unchanged source hash and never modifies the source resume.
 
 ## Scope boundary
 

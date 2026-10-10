@@ -4,7 +4,7 @@
     "name": "codex_session",
     "status": "deferred_for_privacy_review",
     "personal_data_allowed": false,
-    "notes": "Agent A uses the active Codex session for job descriptions only. Agent C resume suggestions remain blocked until personal resume data sharing, provider handling, and retention are explicitly approved; no direct provider API path is used."
+    "notes": "Agent A uses the active Codex session for job descriptions only. Agent C conversion and Gemini API suggestion generation remain blocked in this example config until separate personal-data approvals are recorded in private config/models.json."
   },
   "agents": {
     "agent_a_resume": {
@@ -22,7 +22,7 @@
       "max_schema_repairs": 1
     },
     "agent_c_resume_suggestions": {
-      "default_model": "codex-session-model",
+      "default_model": "gemini-3.6-flash",
       "fallback_models": [],
       "max_schema_repairs": 1
     }

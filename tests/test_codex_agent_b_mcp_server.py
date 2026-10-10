@@ -59,6 +59,9 @@ class CodexAgentBMCPServerTests(unittest.TestCase):
                 "agent_b_fetch_job_url",
             },
         )
+        fetch_tool = next(tool for tool in listed["result"]["tools"] if tool["name"] == "agent_b_fetch_job_url")
+        self.assertIn("Firecrawl scrape first", fetch_tool["description"])
+        self.assertIn("Fetch MCP with raw=true", fetch_tool["description"])
 
     def test_preview_search_returns_query_plan_without_jobs(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -360,6 +363,35 @@ Requirements
         self.assertIsNotNone(audit)
         self.assertEqual(json.loads(audit["details_json"])["source_id"], "fetch_mcp_url_import")
 
+    def test_fetch_job_url_extracts_company_from_listing_markdown(self) -> None:
+        fetched_text = """![logo](https://images.example.test/logo.png)
+
+[Example Systems](https://careers.example.test/companies/example-systems) · W25
+
+# Software Engineer
+
+LocationRemote
+TypeFull-time
+
+## About the role
+Build production distributed systems using Rust and TypeScript.
+
+## Requirements
+- Experience with backend infrastructure
+"""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            server = AgentBServer(Path.cwd(), space_paths=_paths(temp_dir))
+            result = server.import_fetched_job_url(
+                url="https://careers.example.test/jobs/123",
+                fetched_text=fetched_text,
+                fetch_warnings=["Fetch MCP raw=true failed; Firecrawl markdown succeeded"],
+            )
+            review_path = Path(result["review_path"])
+
+        self.assertEqual(result["company"], "Example Systems")
+        self.assertEqual(review_path.parent.name, "example-systems")
+        self.assertIn("Firecrawl", result["fetch_provenance"]["fetch_warnings"][0])
+
     def test_fetch_job_url_routes_blocked_pages_to_manual_handoff(self) -> None:
         blocked_text = "Please enable JavaScript and sign in to view this job posting. " * 4
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -385,6 +417,55 @@ Requirements
         self.assertEqual(result["source_id"], "fetch_mcp_url_import")
         self.assertIn("blocked", result["reason"])
         self.assertEqual(listed["count"], 0)
+
+    def test_fetch_job_url_saves_description_without_title_or_company(self) -> None:
+        fetched_text = """- My career
+
+## Description
+Amazon is seeking a machine learning engineer to work on search systems.
+
+## Basic Qualifications
+- 2+ years of non-internship software development experience
+- Experience building large scale systems for customers
+"""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            server = AgentBServer(Path.cwd(), space_paths=_paths(temp_dir))
+            result = server.import_fetched_job_url(
+                url="https://jobs.example.test/jobs/10418966",
+                fetched_text=fetched_text,
+            )
+            listed = server.list_saved_jobs()
+
+        self.assertEqual(result["status"], "imported")
+        self.assertIsNone(result["title"])
+        self.assertIsNone(result["company"])
+        self.assertEqual(result["agent_a_handoff"]["status"], "pending_codex_mcp")
+        self.assertEqual(listed["count"], 1)
+
+    def test_manual_import_accepts_description_without_url(self) -> None:
+        description = """Title: Software Engineer
+Company: Fictional Systems
+Location: India — Remote
+Employment type: Full-time
+
+Responsibilities
+- Build and maintain a production application.
+
+Requirements
+- JavaScript and TypeScript experience.
+"""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            server = AgentBServer(Path.cwd(), space_paths=_paths(temp_dir))
+            response = server.handle_request({
+                "jsonrpc": "2.0", "id": 15, "method": "tools/call",
+                "params": {"name": "agent_b_import_job_text", "arguments": {"description": description}},
+            })
+            result = response["result"]["structuredContent"]
+
+        self.assertEqual(result["status"], "imported")
+        self.assertIsNone(result["canonical_url"])
+        self.assertEqual(result["company"], "Fictional Systems")
+        self.assertEqual(result["agent_a_handoff"]["status"], "pending_codex_mcp")
 
     def test_fetch_job_url_rejects_local_urls(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

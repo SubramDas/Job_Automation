@@ -5,7 +5,7 @@
   "canonical_instruction": "AGENT.md",
   "contributor_instruction": "AGENTS.md",
   "model": {
-    "default": "codex-session-model",
+    "default": "gemini-3.6-flash",
     "fallbacks": [],
     "max_schema_repairs": 1
   },
@@ -13,8 +13,10 @@
     "global_application_invariants",
     "agent_c_resume_suggestions/AGENT.md",
     "selected_skill/SKILL.md",
+    "agent_c_resume_suggestions/PROMPT.md",
     "task_inputs"
   ],
+  "generation_prompt": "PROMPT.md",
   "skills": [
     {"id": "resume-keyword-suggestions", "path": "skills/resume-keyword-suggestions/SKILL.md"}
   ],

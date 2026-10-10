@@ -13,7 +13,8 @@ from typing import Any
 from app.storage.space import ArtifactRecord, SpaceError, SpaceStore, new_id, stable_json, utc_now
 
 CONVERTER_VERSION = "simple-latex-markdown-v1"
-SUGGESTION_VERSION = "agent-c-keyword-three-lines-v3"
+SUGGESTION_VERSION = "agent-c-keyword-three-lines-v5"
+SUGGESTION_PROMPT_VERSION = "agent-c-resume-keyword-suggestions-v2"
 MAX_RESUME_BYTES = 2_000_000
 MAX_RESUME_CHARS = 100_000
 MAX_SUGGESTION_BYTES = 256_000
@@ -270,6 +271,13 @@ def get_suggestion_context(store: SpaceStore, job_id: str) -> dict[str, Any]:
     conversion = _current_conversion(store)
     if plan_row["description_hash"] != job["description_hash"]:
         raise SpaceError("keyword plan is stale for the current job description")
+    prompt_path = Path(__file__).resolve().parents[2] / "agents" / "agent_c_resume_suggestions" / "PROMPT.md"
+    try:
+        prompt = prompt_path.read_text(encoding="utf-8")
+    except OSError as exc:
+        raise SpaceError("Agent C generation prompt is unavailable") from exc
+    if f"`{SUGGESTION_PROMPT_VERSION}`" not in prompt:
+        raise SpaceError("Agent C generation prompt version does not match the runtime")
     return {
         "job_id": job_id,
         "description_hash": job["description_hash"],
@@ -277,6 +285,9 @@ def get_suggestion_context(store: SpaceStore, job_id: str) -> dict[str, Any]:
         "keyword_plan_artifact_id": plan_row["artifact_id"],
         "keyword_plan_sha256": plan_row["artifact_sha256"],
         "keywords": plan.get("keywords", []),
+        "generation_prompt_version": SUGGESTION_PROMPT_VERSION,
+        "generation_prompt_sha256": hashlib.sha256(prompt.encode("utf-8")).hexdigest(),
+        "generation_prompt": prompt,
         "resume_source_sha256": conversion.source_sha256,
         "resume_conversion_sha256": conversion.conversion_sha256,
         "resume_converter_version": conversion.converter_version,
@@ -302,7 +313,12 @@ def _current_conversion(store: SpaceStore) -> ResumeConversion:
     return ResumeConversion(source_hash, digest, str(manifest.get("converter_version", "unknown")), markdown_path, markdown, True, tuple(manifest.get("warnings", [])))
 
 
-def validate_suggestions(payload: dict[str, Any], resume_markdown: str, keyword_terms: list[str] | None = None) -> dict[str, Any]:
+def _searchable_term(value: str) -> str:
+    """Normalize punctuation while retaining word boundaries for keyword checks."""
+    return re.sub(r"[^a-z0-9+]+", " ", value.casefold()).strip()
+
+
+def validate_suggestions(payload: dict[str, Any], resume_markdown: str, keyword_terms: list[str | dict[str, Any]] | None = None) -> dict[str, Any]:
     findings: list[dict[str, str]] = []
     unknown_input_fields = set(payload) - {"keyword_suggestions"}
     if unknown_input_fields:
@@ -313,7 +329,17 @@ def validate_suggestions(payload: dict[str, Any], resume_markdown: str, keyword_
     if not isinstance(suggestions, list):
         findings.append({"code": "keyword_suggestions_required", "severity": "blocking"})
         suggestions = []
-    planned = {str(term).strip().casefold() for term in (keyword_terms or []) if str(term).strip()}
+    targets: dict[str, list[str]] = {}
+    for term in keyword_terms or []:
+        if isinstance(term, dict):
+            label = str(term.get("term", "")).strip()
+            variants = [label, *(str(value) for value in term.get("exact_terms", [])), *(str(value) for value in term.get("synonyms", []))]
+        else:
+            label = str(term).strip()
+            variants = [label]
+        if label:
+            targets[label.casefold()] = [normalized for value in variants if (normalized := _searchable_term(value))]
+    planned = set(targets)
     seen: set[str] = set()
     for index, item in enumerate(suggestions):
         label = f"keyword_suggestion_{index + 1}"
@@ -338,24 +364,41 @@ def validate_suggestions(payload: dict[str, Any], resume_markdown: str, keyword_
             if not isinstance(variant, dict):
                 findings.append({"code": f"{variant_label}_invalid", "severity": "blocking"})
                 continue
-            if set(variant) - {"section_or_project", "resume_pointer", "proposed_line", "rationale"}:
+            if set(variant) - {"action", "section_or_project", "resume_pointer", "proposed_line", "evidence_basis", "verification_needed", "rationale"}:
                 findings.append({"code": f"{variant_label}_unknown_fields", "severity": "blocking"})
+            action = str(variant.get("action", "")).strip()
             destination = str(variant.get("section_or_project", "")).strip()
             pointer = str(variant.get("resume_pointer", "")).strip()
             proposal = str(variant.get("proposed_line", "")).strip()
+            evidence = str(variant.get("evidence_basis", "")).strip()
+            verification = str(variant.get("verification_needed", "")).strip()
             rationale = str(variant.get("rationale", "")).strip()
-            if not all((destination, pointer, proposal, rationale)):
+            if action not in {"replace_existing_line", "add_new_line"}:
+                findings.append({"code": f"{variant_label}_invalid_action", "severity": "blocking"})
+            if not all((destination, pointer, proposal, evidence, verification, rationale)):
                 findings.append({"code": f"{variant_label}_missing_field", "severity": "blocking"})
                 continue
-            if pointer not in resume_markdown:
+            if pointer not in resume_markdown.splitlines():
                 findings.append({"code": f"{variant_label}_resume_pointer_not_found", "severity": "blocking"})
             block = _project_block(resume_markdown, destination)
             if block is not None and pointer not in block:
                 findings.append({"code": f"{variant_label}_cross_project_pointer", "severity": "blocking"})
-            if len(_rendered(proposal)) > len(_rendered(pointer)):
+            if action == "replace_existing_line" and len(_rendered(proposal)) > len(_rendered(pointer)):
                 findings.append({"code": f"{variant_label}_exceeds_pointer_length", "severity": "blocking"})
-            if normalized not in _rendered(proposal).casefold():
+            if action == "add_new_line" and not re.search(r"\binsert\s+(?:before|after)\b", rationale, re.IGNORECASE):
+                findings.append({"code": f"{variant_label}_insertion_position_missing", "severity": "blocking"})
+            searchable_proposal = " " + _searchable_term(_rendered(proposal)) + " "
+            if not any(" " + target + " " in searchable_proposal for target in targets.get(normalized, [_searchable_term(keyword)])):
                 findings.append({"code": f"{variant_label}_keyword_missing_from_line", "severity": "blocking"})
+            if evidence.casefold() != "no direct resume evidence":
+                if evidence not in resume_markdown:
+                    findings.append({"code": f"{variant_label}_evidence_not_found", "severity": "blocking"})
+                if block is not None and evidence not in block:
+                    findings.append({"code": f"{variant_label}_cross_project_evidence", "severity": "blocking"})
+            elif verification.casefold() == "none":
+                findings.append({"code": f"{variant_label}_unsupported_claim_not_flagged", "severity": "blocking"})
+            elif not proposal.startswith("[Only if true]"):
+                findings.append({"code": f"{variant_label}_unsupported_claim_not_conditional", "severity": "blocking"})
             signature = _rendered(proposal).casefold()
             if signature in signatures:
                 findings.append({"code": f"{label}_duplicate_variants", "severity": "blocking"})
@@ -371,11 +414,11 @@ def validate_suggestions(payload: dict[str, Any], resume_markdown: str, keyword_
 
 def save_suggestions(store: SpaceStore, *, job_id: str, payload: dict[str, Any], model: dict[str, Any] | None = None) -> SuggestionResult:
     context = get_suggestion_context(store, job_id)
-    validation = validate_suggestions(payload, context["resume_markdown"], [item["term"] for item in context["keywords"]])
+    validation = validate_suggestions(payload, context["resume_markdown"], context["keywords"])
     if validation["status"] != "passed":
         raise SpaceError("suggestion validation failed: " + ", ".join(f["code"] for f in validation["findings"]))
     output = {
-        "schema_version": "2026-09-28.agent-c-v3",
+        "schema_version": "2026-09-28.agent-c-v5",
         "job_id": job_id,
         "description_hash": context["description_hash"],
         "keyword_plan_id": context["keyword_plan_id"],
@@ -384,7 +427,9 @@ def save_suggestions(store: SpaceStore, *, job_id: str, payload: dict[str, Any],
         "resume_source_sha256": context["resume_source_sha256"],
         "resume_conversion_sha256": context["resume_conversion_sha256"],
         "resume_converter_version": context["resume_converter_version"],
-        "prompt_version": SUGGESTION_VERSION,
+        "prompt_version": SUGGESTION_PROMPT_VERSION,
+        "generation_prompt_sha256": context["generation_prompt_sha256"],
+        "suggestion_schema_version": SUGGESTION_VERSION,
         "model": {"provider_mode": "codex_mcp", **(model or {})},
         "validation": validation,
         "keyword_suggestions": payload["keyword_suggestions"],
@@ -421,7 +466,7 @@ def render_suggestions_markdown(payload: dict[str, Any], suggestion_id: str, art
     for item in payload["keyword_suggestions"]:
         lines.extend([f"## Keyword: {item['keyword']}", ""])
         for index, suggestion in enumerate(item["suggestions"], 1):
-            lines.extend([f"### Suggestion {index}: {suggestion['section_or_project']}", "", f"**Resume pointer:** {suggestion['resume_pointer']}", f"**Suggested line:** {suggestion['proposed_line']}", f"**Why it may fit:** {suggestion['rationale']}", ""])
+            lines.extend([f"### Suggestion {index}: {suggestion['section_or_project']}", "", f"**Action:** {suggestion.get('action', 'unspecified')}", f"**Resume pointer:** {suggestion['resume_pointer']}", f"**Suggested line:** {suggestion['proposed_line']}", f"**Evidence:** {suggestion.get('evidence_basis', 'Not provided')}", f"**Verify:** {suggestion.get('verification_needed', 'Not specified')}", f"**Why it may fit:** {suggestion['rationale']}", ""])
     return "\n".join(lines).rstrip() + "\n"
 
 

@@ -8,7 +8,7 @@ This wrapper exposes a compact tool surface to Codex:
 - ``agent_b_get_review_index`` reads the generated review index.
 - ``agent_b_list_saved_jobs`` returns a lightweight saved-job list.
 - ``agent_b_import_job_text`` imports pasted job details and a source/apply link.
-- ``agent_b_fetch_job_url`` imports content already retrieved through Fetch MCP.
+- ``agent_b_fetch_job_url`` imports content retrieved through Fetch MCP or Firecrawl.
 
 The server delegates discovery, policy checks, storage, and matching to the existing
 Agent B runner and project MCP facade.
@@ -117,18 +117,18 @@ AGENT_B_TOOLS: tuple[dict[str, Any], ...] = (
     {
         "name": "agent_b_import_job_text",
         "description": (
-            "Import a pasted job description and job/apply link, then save, extract, match, "
+            "Import a pasted job description with an optional job/apply link, then save, extract, match, "
             "and mirror it into the private review workspace. A successful import returns an "
             "Agent A MCP handoff that Codex must complete before calling the workflow finished."
         ),
         "inputSchema": {
             "type": "object",
             "additionalProperties": False,
-            "required": ["url", "description"],
+            "required": ["description"],
             "properties": {
                 "url": {
                     "type": "string",
-                    "description": "Original job or apply link supplied by the user.",
+                    "description": "Original job or apply link, if supplied by the user. Omit when unavailable.",
                 },
                 "description": {
                     "type": "string",
@@ -144,8 +144,11 @@ AGENT_B_TOOLS: tuple[dict[str, Any], ...] = (
     {
         "name": "agent_b_fetch_job_url",
         "description": (
-            "Import a public job URL after Codex retrieves it with Fetch MCP. Call Fetch MCP "
-            "first, then pass the fetched markdown/text here so Agent B can save, extract, "
+            "Import a public job URL. Codex must try Firecrawl scrape first; only if it "
+            "fails or returns an unusable job description, try "
+            "Fetch MCP with raw=true for the same URL. "
+            "Do not import an incomplete first result before trying the fallback. Pass "
+            "the successful raw HTML or markdown here so Agent B can save, extract, "
             "match, dedupe, and mirror it into the private review workspace. A successful "
             "import returns an Agent A MCP handoff that Codex must complete."
         ),
@@ -160,20 +163,20 @@ AGENT_B_TOOLS: tuple[dict[str, Any], ...] = (
                 },
                 "fetched_text": {
                     "type": "string",
-                    "description": "Markdown/text returned by Fetch MCP for the job page.",
+                    "description": "Raw HTML or markdown returned by Fetch MCP or Firecrawl for the job page.",
                 },
                 "final_url": {
                     "type": "string",
-                    "description": "Final URL after redirects, if Fetch MCP reports one.",
+                    "description": "Final URL after redirects, if the retriever reports one.",
                 },
                 "content_truncated": {
                     "type": "boolean",
-                    "description": "Whether the Fetch MCP response was truncated.",
+                    "description": "Whether the selected retrieval response was truncated.",
                 },
                 "fetch_warnings": {
                     "type": "array",
                     "items": {"type": "string"},
-                    "description": "Warnings from the Fetch MCP step, if any.",
+                    "description": "Retrieval method and failures, including any Firecrawl fallback reason.",
                 },
             },
         },
@@ -248,7 +251,7 @@ class AgentBServer:
             result = self.list_saved_jobs(limit=_limit(arguments))
         elif name == "agent_b_import_job_text":
             result = self.import_job_text(
-                url=_required_str(arguments, "url"),
+                url=_optional_str(arguments, "url"),
                 description=_required_str(arguments, "description"),
                 source_id=str(arguments.get("source_id") or "manual_import").strip() or "manual_import",
             )
@@ -374,7 +377,7 @@ class AgentBServer:
             jobs.append(job)
         return {"status": "completed", "count": len(jobs), "jobs": jobs}
 
-    def import_job_text(self, *, url: str, description: str, source_id: str = "manual_import") -> dict[str, Any]:
+    def import_job_text(self, *, url: str | None, description: str, source_id: str = "manual_import") -> dict[str, Any]:
         context = ToolContext(agent_id="agent_b_discovery", task_id="codex_agent_b_import_job_text")
         saved = self.registry.call(
             context,
@@ -503,8 +506,9 @@ class AgentBServer:
                 "reason": handoff_reason,
                 "provenance": provenance,
                 "message": (
-                    "Fetch MCP did not return a usable job description. Paste the full JD text "
-                    "with the link and use agent_b_import_job_text."
+                    "Retrieval did not return a usable job description. Try the fallback "
+                    "retriever if available; otherwise paste "
+                    "the full JD text with the link and use agent_b_import_job_text."
                 ),
             }
         result = self.import_job_text(
@@ -733,13 +737,13 @@ def build_fastmcp_server(project_root: Path | None = None) -> Any:
     @server.tool(
         name="agent_b_import_job_text",
         description=(
-            "Import pasted job text and a job/apply link, then save, extract, match, and "
+            "Import pasted job text and an optional job/apply link, then save, extract, match, and "
             "mirror it locally. Complete the returned Agent A MCP handoff with Codex."
         ),
     )
     def agent_b_import_job_text(
-        url: str,
         description: str,
+        url: str | None = None,
         source_id: str = "manual_import",
     ) -> dict[str, Any]:
         return agent_server.import_job_text(url=url, description=description, source_id=source_id)
@@ -747,8 +751,11 @@ def build_fastmcp_server(project_root: Path | None = None) -> Any:
     @server.tool(
         name="agent_b_fetch_job_url",
         description=(
-            "Import content fetched from a public job URL. Codex should call Fetch MCP first "
-            "and pass the fetched markdown/text to this tool, then complete the returned "
+            "Import content fetched from a public job URL. Codex must try Firecrawl scrape "
+            "first, then Fetch MCP raw=true only if Firecrawl fails or the job description "
+            "is unusable. Missing title or company must not block import. "
+            "Do not import an incomplete first result before trying the fallback. Pass the "
+            "successful content and retrieval warnings, then complete the returned "
             "Agent A MCP handoff with the current Codex session model."
         ),
     )

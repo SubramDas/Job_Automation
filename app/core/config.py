@@ -70,6 +70,19 @@ def validate_config(config_dir: Path) -> ValidationResult:
         supported_stages = {"keyword_planning", "resume_keyword_suggestions"}
         if not models["provider"].get("personal_data_allowed") or not allowed_stages or allowed_stages - supported_stages:
             raise ConfigError("personal-data approval requires personal_data_allowed and explicit supported allowed_stages")
+    gemini = models.get("agent_c_gemini")
+    if gemini is not None:
+        if not isinstance(gemini, dict):
+            raise ConfigError("agent_c_gemini must be an object")
+        if gemini.get("status") == "approved_for_personal_data_processing":
+            if not (
+                gemini.get("name") == "google_gemini_api"
+                and gemini.get("personal_data_allowed") is True
+                and gemini.get("allowed_stages") == ["resume_keyword_suggestions"]
+                and gemini.get("model_id") == "gemini-3.6-flash"
+                and gemini.get("thinking_level") == "high"
+            ):
+                raise ConfigError("Agent C Gemini approval must be limited to Gemini 3.6 Flash high thinking and resume_keyword_suggestions")
     for agent_name, agent_config in models["agents"].items():
         _require_keys(agent_config, {"default_model", "fallback_models", "max_schema_repairs"}, agent_name)
         if agent_config["max_schema_repairs"] > 1:

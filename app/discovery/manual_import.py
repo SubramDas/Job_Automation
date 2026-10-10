@@ -239,7 +239,7 @@ def extract_job_description(text: str, *, canonical_url: str | None) -> dict[str
     extraction: dict[str, Any] = {
         "source_url": _field(canonical_url, None),
         "title": _field(_find_label(lines, ("title", "job title", "role")) or _first_title(lines), None),
-        "company": _field(_find_label(lines, ("company", "employer", "organization")), None),
+        "company": _field(_find_label(lines, ("company", "employer", "organization")) or _linked_company_heading(lines), None),
         "requisition_id": _field(_find_requisition(text), None),
         "locations": _field(_find_locations(text), None),
         "work_arrangement": _field(_find_work_arrangement(text), None),
@@ -405,9 +405,24 @@ def _find_label(lines: list[str], labels: tuple[str, ...]) -> str | None:
     return None
 
 
+def _linked_company_heading(lines: list[str]) -> str | None:
+    """Recognize the company link above a job title in listing-page markdown."""
+    for index, line in enumerate(lines[:8]):
+        match = re.fullmatch(r"\[([^\]]{2,100})\]\(https?://[^)]+/companies/[^)]+\)(?:\s*[·|].*)?", line)
+        if match and any(re.fullmatch(r"#\s+.{3,100}", following) for following in lines[index + 1:index + 4]):
+            return match.group(1).strip()
+    return None
+
+
 def _first_title(lines: list[str]) -> str | None:
+    for line in lines[:30]:
+        match = re.fullmatch(r"#\s+(.{3,100})", line)
+        if match:
+            return match.group(1).strip()
     for line in lines[:8]:
-        if 3 <= len(line) <= 90 and not re.search(r"https?://|@|:", line):
+        if line.startswith("#"):
+            break
+        if 3 <= len(line) <= 90 and not re.search(r"https?://|@|:|^\s*[-*•]|^\s*#", line):
             return line
     return None
 

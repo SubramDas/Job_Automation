@@ -64,8 +64,11 @@ External failures on unsupported sources become manual handoff, not workaround a
 
 ## Single-Link Fetch
 
-For a user-supplied public job URL, Codex may fetch the page through Fetch MCP and pass the
-retrieved markdown/text plus the original URL into Agent B's import pipeline. Save the job
+For a user-supplied public job URL, Codex first tries Firecrawl scrape. Only if it fails
+or yields unusable content, Codex tries Fetch MCP with `raw=true` for the same URL. Codex
+checks for the full job description before import and passes the
+successful raw HTML or markdown, retrieval warnings, and original URL into Agent B's import
+pipeline. Save the job
 with a `fetch_mcp_url_import`-style source ID, preserve the requested URL and final fetched
 URL when available, and then run the normal extraction, matching, duplicate detection, and
 review-workspace refresh.

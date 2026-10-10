@@ -73,7 +73,8 @@ or `config/sources.example.json`. Local sources such as JobSpy are auto-selected
 their health endpoint is already running; fixtures and manual-only sources stay explicit.
 
 For a job link where direct retrieval is unsupported or not allowed, paste the full job
-description/details text with the link and ask Agent B to import it. The Codex-facing MCP
+description/details text and any available link, then ask Agent B to import it. A link is
+optional for pasted descriptions. The Codex-facing MCP
 tool `agent_b_import_job_text` saves the exact pasted text, extracts fields, evaluates the
 match, and refreshes `private/job_reviews/` without scraping the linked site.
 
@@ -83,8 +84,11 @@ Phase 05G adds a single-link fetch path for public job pages:
 Agent B mcp fetch <job-link>
 ```
 
-Codex should call the configured Fetch MCP to retrieve the page as readable markdown/text,
-then pass the fetched content into Agent B's `agent_b_fetch_job_url` tool. A successful
+Codex should call Firecrawl scrape first. Only if that fails or returns unusable page
+content, call Fetch MCP with `raw=true` for the same URL. Check that the result contains
+the full job description before importing it. Missing title or company stays unknown and
+does not block saving or keyword planning. Pass the successful markdown or raw HTML
+and retrieval warnings into Agent B's `agent_b_fetch_job_url` tool. A successful
 fetch creates the same outputs as manual import: a saved `job_id`,
 immutable description artifact, match decision, and readable files under
 `private/job_reviews/`. This path is read-only and does not authorize login, browser
@@ -97,10 +101,8 @@ with the current session model, and save the plan. The validated result is then 
 `keywords.md` in the job's review folder. Blocked or manual-handoff pages do not trigger an
 Agent A handoff. The same contract applies to pasted imports and normal multi-source discovery.
 
-Some ATS pages, including Workday, may return `Page failed to be simplified from HTML` in
-Fetch MCP's simplified mode while still exposing useful JobPosting metadata in raw HTML. In
-that case, retry Fetch MCP with raw HTML and pass that raw content to `agent_b_fetch_job_url`;
-Agent B normalizes JSON-LD/meta JobPosting data before saving.
+Agent B normalizes JSON-LD/meta JobPosting data from raw HTML before saving. If neither
+retriever yields a usable description, use the manual text import path.
 
 Use `--json` for machine-readable CLI output. The detailed JSON and Markdown run reports are
 stored as private artifacts and referenced by opaque artifact IDs in the command output.
@@ -203,7 +205,7 @@ command = "python3"
 args = ["-m", "app.mcp.codex_agent_c_server"]
 cwd = "/home/subramd/Job_Automation"
 default_tools_approval_mode = "prompt"
-enabled_tools = ["agent_c_import_resume", "agent_c_save_resume_markdown", "agent_c_get_suggestion_context", "agent_c_save_suggestions"]
+enabled_tools = ["agent_c_import_resume", "agent_c_save_resume_markdown", "agent_c_generate_suggestions"]
 ```
 
 Codex's current OpenAI Docs describe local stdio MCP configuration through
@@ -214,7 +216,9 @@ the resume path you provide.
 
 After the provider/privacy decision is approved, give
 Agent C the local resume path and job ID; once that job has a saved Agent A keyword plan, it
-imports/converts the resume if needed and creates three evidence-based edit options plus a
+imports/converts the resume if needed and uses `agent_c_generate_suggestions` to send the
+cached Markdown, assigned plan, and canonical prompt to Gemini 3.6 Flash with high thinking.
+The tool creates three evidence-based edit options plus a
 separate placement recommendation for every plan keyword. The review artifact is saved as
 `resume-keyword-suggestions.md` in the job folder. Project edits cite evidence and the same-
 project line to replace, and are rejected if the proposed rendered line is longer. Every
@@ -222,18 +226,19 @@ keyword gets a suggested location; unsupported terms are marked `needs_confirmat
 conditional wording. Agent C returns advice only; choose and apply edits to the TeX file
 manually.
 
-**Privacy gate:** project decision P00-12 still permits only synthetic candidate data to be
-processed by a model. The Agent C MCP tools refuse to return resume text or save suggestions
-until model configuration explicitly approves personal-data processing and includes
-`resume_keyword_suggestions` in `provider.allowed_stages`. Do not change that setting until
-provider data handling, sharing, and retention have been reviewed. The deterministic local
-fallback converter does not send data to a model; the preferred MCP conversion does. After
-that review, put your approved provider values in the
-gitignored `config/models.json` (starting from `config/models.example.json`); the required
-provider fields are `status: "approved_for_personal_data_processing"`,
-`personal_data_allowed: true`, and `allowed_stages` containing
-`"resume_keyword_suggestions"`. The normal config validator checks this local file when it
-exists.
+Gemini receives one plan keyword per request. Agent C stores each validated response in a
+private checkpoint and saves the final artifact only after every keyword passes the full-plan
+check. Temporary Gemini 429/5xx errors receive bounded retries; daily-quota 429 errors stop
+immediately and preserve the validated checkpoints for a later run.
+
+**Privacy gate:** the Codex session approval for conversion and context remains recorded in
+gitignored `config/models.json`. On 2026-09-30, the user requested Gemini API generation for
+Agent C and supplied `GEMINI_API_KEY` in the gitignored `.env`; the separate `agent_c_gemini`
+entry limits that external call to `resume_keyword_suggestions`. The key is read locally and
+is never included in an artifact or tool result. Review Google's Gemini API data handling and
+billing settings for the account used. The normal config validator checks the local model file
+when it exists. Restart/reload Codex after this MCP tool change; an existing server process
+will continue advertising its old tool list until restarted.
 
 ### Agent A model configuration
 

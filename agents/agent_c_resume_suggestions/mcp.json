@@ -5,6 +5,7 @@
   "tools": [
     {"name": "agent_c_import_resume", "scope": "user-provided local .tex path copied into the single private resume slot", "external_effect": "local_draft"},
     {"name": "agent_c_save_resume_markdown", "scope": "cache Markdown for the matching resume source hash", "external_effect": "local_draft"},
+    {"name": "agent_c_generate_suggestions", "scope": "send the assigned cached resume and job keyword plan to approved Gemini API; validate and save suggestions", "external_effect": "external_model_call"},
     {"name": "agent_c_get_suggestion_context", "scope": "assigned job plan and current cached private resume Markdown only", "external_effect": "none"},
     {"name": "agent_c_save_suggestions", "scope": "assigned job suggestion artifact with full keyword placement coverage", "external_effect": "local_draft"}
   ]

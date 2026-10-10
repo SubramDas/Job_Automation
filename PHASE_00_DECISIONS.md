@@ -46,7 +46,7 @@ user explicitly narrows the product further:
 | P00-09 | Local/hosted operation, review interface, notifications, timezone | Complete for MVP | Local laptop, CLI, Asia/Kolkata; no external notification channel selected yet |
 | P00-10 | Cost/runtime budgets, processing caps, submission caps, schedule | Complete for MVP | User starts each run manually; no initial automatic schedule, cost/runtime budget, or processing/preparation/submission caps; these are required before unattended or live operation |
 | P00-11 | Draft mode and future standing-permission fields | Complete | User reviews every job, keyword plan, resume document, answer set, gap, and destination; live and unattended submission disabled initially; standing permission is a later decision |
-| P00-12 | Provider data-sharing and retention constraints | Complete for synthetic scope | Provider review deferred; only synthetic data may be processed until provider, sharing, and retention constraints are explicitly approved |
+| P00-12 | Provider data-sharing and retention constraints | Complete, updated 2026-09-30 | User approved Agent C using the active resume through the configured Codex session for conversion. On 2026-09-30, the user requested Gemini 3.6 Flash high-thinking line generation and supplied `GEMINI_API_KEY`. The Gemini API path is limited to Agent C `resume_keyword_suggestions` and sends the cached resume Markdown, assigned job keyword plan, and canonical prompt. Other personal-data model processing remains unapproved. |
 | P00-13 | Evaluation goals and release thresholds | Complete | User approved the initial quality goals listed below |
 | P00-14 | Labeling process for 20–30 initial jobs | Complete | User will label each job yes/maybe/no with a reason; preserve a held-out subset for evaluation |
 
@@ -67,7 +67,7 @@ user explicitly narrows the product further:
 
 The user approved the initial scope and architecture on 2026-09-23. On 2026-09-27, the user narrowed the product to profile/Space, job discovery and matching, and keyword planning; application-form and submission functionality was removed. The MVP will run locally on the
 user's laptop and expose a command-line interface. Provider selection and personal-data
-handling remain pending and do not inherit approval from the architecture decision.
+handling for other personal-data stages remain pending and do not inherit approval from the architecture decision. Agent C's limited approvals are recorded in P00-12.
 
 ## Initial operating mode
 

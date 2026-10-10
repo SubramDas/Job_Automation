@@ -42,7 +42,7 @@ The product does not prepare or submit job applications. Do not connect applican
 - For each keyword, return exactly three distinct draft lines using exact resume lines/sections as pointers. Hypothetical claims are allowed because the user verifies every suggestion before applying it. Make the target project or section clear and do not combine projects or transfer evidence between them.
 - Keep project lines within one named project and no longer than the line they replace. Also consider appropriate non-project sections such as Skills, Education, and Summary. The user chooses and applies changes manually; never silently edit the TeX file.
 - Keep source TeX and derived Markdown private; expose only the assigned resume version and job-linked keyword artifact.
-- The Agent C model context/save tools remain blocked until provider handling and retention are explicitly approved in model configuration.
+- The Agent C model context/save tools are authorized for the user's active resume only under the approval recorded in `config/models.json`; keep use limited to the assigned job's keyword plan and manual suggestions. Do not broaden personal-data use to other stages.
 
 ### Orchestrator and validation layer
 

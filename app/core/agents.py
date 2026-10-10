@@ -48,6 +48,7 @@ ALLOWED_TOOLS: dict[str, tuple[str, ...]] = {
     "agent_c_resume_suggestions": (
         "agent_c_import_resume",
         "agent_c_save_resume_markdown",
+        "agent_c_generate_suggestions",
         "agent_c_get_suggestion_context",
         "agent_c_save_suggestions",
     ),
@@ -137,6 +138,8 @@ def _validate_tools(agent_id: str, mcp: dict[str, Any]) -> None:
         declared.add(tool["name"])
         if tool["name"] not in allowed:
             raise ConfigError(f"{agent_id} declares unapproved tool: {tool['name']}")
+        if tool["external_effect"] == "external_model_call" and agent_id == "agent_c_resume_suggestions" and tool["name"] == "agent_c_generate_suggestions":
+            continue
         if tool["external_effect"] not in (
             "none",
             "local_draft",

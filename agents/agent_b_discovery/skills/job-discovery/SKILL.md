@@ -4,7 +4,7 @@
 
 Use when planning permitted searches, processing synthetic source results, accepting a
 manual job description and source URL, or importing content fetched from a user-supplied
-public job URL through Fetch MCP.
+public job URL through Firecrawl or Fetch MCP.
 
 ## Procedure
 
@@ -13,9 +13,9 @@ public job URL through Fetch MCP.
    work-mode rules.
 3. Use only sources whose capability flags permit the requested operation.
 4. Preserve source URL, source job ID when available, retrieval time, and raw description.
-5. For `Agent B mcp fetch <url>` requests, use the configured Fetch MCP only for read-only
-   page retrieval, then pass the fetched markdown/text and original URL through the normal
-   import path.
+5. For `Agent B mcp fetch <url>` requests, scrape the public page with Firecrawl first.
+   Use Fetch MCP with `raw=true` only if Firecrawl fails or lacks a usable full description.
+   Check the chosen result before passing it and the original URL through the import path.
 6. Store the durable job record through Space/artifacts, then mirror saved jobs into the
    private review workspace when that feature is enabled.
 7. Route unsupported sources, blocked fetches, JavaScript-only pages, login/CAPTCHA pages,
@@ -26,7 +26,7 @@ public job URL through Fetch MCP.
 Positive: A fictional pasted employer URL plus job text is accepted as manual import and
 saved with provenance.
 
-Positive: A public employer job URL fetched through Fetch MCP is saved with the same
+Positive: A public employer job URL retrieved through Firecrawl is saved with the same
 snapshot, extraction, match result, and review workspace files as a pasted import.
 
 Negative: Do not automate LinkedIn website activity when the capability registry marks it
